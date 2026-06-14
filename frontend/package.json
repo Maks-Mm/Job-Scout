@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
-  "build": "powershell -c \"$env:NEXT_DISABLE_TURBOPACK=1; next build\"",
-  "start": "next start",
-  "lint": "eslint"
-},
+    "dev": "next dev",
+    "build": "cross-env NEXT_DISABLE_TURBOPACK=1 next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
     "axios": "^1.17.0",
@@ -24,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
