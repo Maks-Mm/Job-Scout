@@ -1,0 +1,90 @@
+# JobRadar 🎯
+
+> Smart Job Aggregation & Notification Platform
+
+[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.95+-green.svg)](https://fastapi.tiangolo.com)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+## 📋 Overview
+
+**JobRadar** is a SaaS web application that aggregates job listings from multiple platforms, applies intelligent user-defined filters, removes duplicates, and delivers only the most relevant job opportunities directly to users.
+
+Stop manually searching across dozens of job portals. JobRadar creates a personalized job discovery pipeline tailored to your preferences.
+
+### Supported Sources
+- 🔵 Kleinanzeigen
+- 🔴 Indeed
+- 💼 LinkedIn
+- 🟢 StepStone
+- 🟠 Job.de
+- 🚀 *More platforms via extensible scraper modules*
+
+---
+
+## ✨ Core Features
+
+### 1. Smart Job Aggregator
+- **Scheduled Scraping** - Automatic collection at configured intervals
+- **Data Normalization** - Unified job schema across all sources
+- **Intelligent Deduplication** - Detect and merge duplicate listings
+- **Source Monitoring** - Track availability and performance
+
+### 2. Advanced User Filters
+Create personalized search profiles with:
+- 📍 **Location** - City, region, or remote
+- 💼 **Job Type** - Full-time, part-time, contract, freelance
+- 💰 **Salary Range** - Minimum and maximum
+- 🔑 **Keywords** - Include/exclude specific terms
+- 📡 **Source Selection** - Choose specific platforms
+- 🔄 **Active/Inactive** - Toggle profiles on/off
+
+### 3. Notification System
+- 📧 **Email Alerts** - Daily/weekly digest
+- 🔔 **Real-time Updates** - Instant notification when matching jobs appear
+- 📱 **Multi-channel** - Email, push, or webhook support
+
+### 4. User Dashboard
+- 📊 **Analytics** - Job trends and market insights
+- 📝 **Application Tracking** - Monitor your applications
+- ⭐ **Saved Jobs** - Bookmark interesting positions
+- 📈 **Filter Performance** - See which filters yield best results
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.9 or higher
+- PostgreSQL (or SQLite for development)
+- Redis (optional, for caching)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/jobradar.git
+cd jobradar
+
+# Backend Setup
+cd backend
+
+# Create and activate virtual environment
+python -m venv venv
+# Windows
+.\venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your database and API keys
+
+# Run database migrations
+alembic upgrade head
+
+# Start the development server
+uvicorn app.main:app --reload --port 8000
