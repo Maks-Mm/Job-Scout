@@ -1,64 +1,83 @@
 def scrape_indeed(city: str):
-    """Fake scraper returning a sample of the most in-demand job categories for the given city."""
+    """Fake scraper — replace with real API calls in Phase 2."""
     return [
         {
-            "id": 1,
-            "title": "Electronics Technician (Elektroniker)",
+            "title": "Python Developer",
             "company": "Example GmbH",
             "city": city,
-            "salary": "€38,000 - €48,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "Installation & Maintenance"
+            "country": "Germany",
+            "salary_min": 57000,
+            "salary_max": 75000,
+            "currency": "EUR",
+            "category": "IT & Software",
+            "description": "We are looking for a Python developer with FastAPI experience.",
+            "url": "https://indeed.de/jobs/python-developer-munich-001",
+            "source": "Indeed"
         },
         {
-            "id": 2,
-            "title": "Sales Manager / Operations Manager",
-            "company": "Example AG",
+            "title": "Electronics Technician",
+            "company": "Example GmbH",
             "city": city,
-            "salary": "€54,000 - €65,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "Sales & Management"
+            "country": "Germany",
+            "salary_min": 38000,
+            "salary_max": 48000,
+            "currency": "EUR",
+            "category": "Installation & Maintenance",
+            "description": "Seeking an electronics technician for industrial maintenance.",
+            "url": "https://indeed.de/jobs/electronics-technician-munich-002",
+            "source": "Indeed"
         },
         {
-            "id": 3,
-            "title": "Nurse / Healthcare Professional (Pflegefachkraft)",
+            "title": "Nurse / Healthcare Professional",
             "company": "Example Klinik",
             "city": city,
-            "salary": "€46,000 - €55,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "Health & Social Care"
+            "country": "Germany",
+            "salary_min": 46000,
+            "salary_max": 55000,
+            "currency": "EUR",
+            "category": "Health & Social Care",
+            "description": "Looking for qualified nursing professionals.",
+            "url": "https://indeed.de/jobs/nurse-munich-003",
+            "source": "Indeed"
         },
         {
-            "id": 4,
-            "title": "Logistics / Warehouse Manager",
+            "title": "Logistics Manager",
             "company": "Example Logistik",
             "city": city,
-            "salary": "€40,000 - €50,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "Administration & Logistics"
+            "country": "Germany",
+            "salary_min": 40000,
+            "salary_max": 50000,
+            "currency": "EUR",
+            "category": "Administration & Logistics",
+            "description": "Managing warehouse and logistics operations.",
+            "url": "https://indeed.de/jobs/logistics-manager-munich-004",
+            "source": "Indeed"
         },
         {
-            "id": 5,
-            "title": "IT Manager / Software Developer",
-            "company": "Example Tech",
+            "title": "Sales Manager",
+            "company": "Example AG",
             "city": city,
-            "salary": "€57,000 - €75,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "IT & Software"
+            "country": "Germany",
+            "salary_min": 54000,
+            "salary_max": 65000,
+            "currency": "EUR",
+            "category": "Sales & Management",
+            "description": "Driving B2B sales in the DACH region.",
+            "url": "https://indeed.de/jobs/sales-manager-munich-005",
+            "source": "Indeed"
         },
         {
-            "id": 6,
-            "title": "Teacher / Educator (Pädagogische Fachkraft)",
+            "title": "Teacher / Educator",
             "company": "Example School",
             "city": city,
-            "salary": "€46,000 - €55,000/year",
-            "url": "https://indeed.de",
-            "source": "Indeed",
-            "category": "Education & Instruction"
-        }
+            "country": "Germany",
+            "salary_min": 46000,
+            "salary_max": 55000,
+            "currency": "EUR",
+            "category": "Education & Instruction",
+            "description": "Teaching position at a state-recognized school.",
+            "url": "https://indeed.de/jobs/teacher-munich-006",
+            "source": "Indeed"
+        },
     ]
+    

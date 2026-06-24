@@ -1,0 +1,458 @@
+Aktueller Stand deines Projekts:
+
+Du hast momentan **eine Backend-Simulation**, keine echte Job-Suchmaschine.
+
+Der Datenfluss ist aktuell:
+
+```
+Frontend (Next.js)
+        |
+        | GET /api/jobs?city=Munich&min_salary=150
+        |
+        v
+FastAPI
+app/api/jobs.py
+        |
+        v
+job_service.py
+        |
+        v
+scrape_indeed()
+        |
+        v
+Hardcoded Python Liste
+        |
+        v
+SQLite Datenbank
+        |
+        v
+JSON Response
+        |
+        v
+Frontend zeigt Jobs
+```
+
+Der "Scraper" ist momentan nur:
+
+```python
+return [
+ {
+  "title": "...",
+  "url": "https://indeed.de"
+ }
+]
+```
+
+Deshalb siehst du immer dieselben 6 Jobs. Es gibt keine Verbindung zu Indeed, Stepstone, LinkedIn usw.
+
+---
+
+## Was eine echte Version braucht
+
+Eine reale Architektur sieht so aus:
+
+```
+                 USER
+                  |
+                  |
+             Frontend
+             Next.js
+                  |
+                  |
+              FastAPI
+                  |
+     +------------+-------------+
+     |                          |
+     |                          |
+ Authentication              Job API
+ JWT / OAuth2                 |
+                              |
+                  +-----------+-----------+
+                  |           |           |
+                  |           |           |
+              Indeed API   LinkedIn    StepStone
+                  |           |           |
+                  +-----------+-----------+
+                              |
+                              |
+                        Normalizer
+                              |
+                              |
+                         PostgreSQL
+                              |
+                              |
+                       Search Engine
+                       Elasticsearch
+                              |
+                              |
+                         Filters
+                 City Salary Category
+```
+
+---
+
+# Roadmap von deinem aktuellen Zustand bis echte Jobplattform
+
+## Phase 1 — Datenbank richtig aufbauen (jetzt)
+
+Du hast:
+
+```
+Job
+ ├── title
+ ├── company
+ ├── city
+ ├── salary
+ ├── url
+ └── source
+```
+
+Das reicht nicht.
+
+Erweitern:
+
+```
+jobs table
+
+id
+title
+company
+description
+city
+country
+salary_min
+salary_max
+currency
+category
+skills
+employment_type
+remote
+source
+external_id
+url
+created_at
+updated_at
+```
+
+Warum?
+
+Weil Filter sonst nicht funktionieren.
+
+Beispiel:
+
+User:
+
+```
+Munich
+Salary > 50000
+Python
+Remote
+```
+
+Dafür brauchst du:
+
+```
+WHERE city='Munich'
+AND salary_min > 50000
+AND skills contains Python
+AND remote=true
+```
+
+---
+
+## Phase 2 — Echte Datenquellen anschließen
+
+Nicht direkt Webseiten scrapen.
+
+Professioneller:
+
+### APIs benutzen
+
+Beispiele:
+
+* Adzuna API
+* Jooble API
+* RapidAPI Job APIs
+
+Ablauf:
+
+```
+FastAPI
+ |
+ |
+Job Collector
+ |
+ |
+Adzuna API
+ |
+ |
+JSON
+ |
+ |
+Database
+```
+
+Beispiel:
+
+Request:
+
+```
+GET api.adzuna.com/jobs/de/search?what=python&where=munich
+```
+
+Antwort:
+
+```json
+{
+"title":"Python Developer",
+"company":"BMW",
+"location":"Munich",
+"salary":65000
+}
+```
+
+Dann speichern.
+
+---
+
+## Phase 3 — API Keys / Sicherheit
+
+Jetzt hast du keine Keys.
+
+Professionell:
+
+`.env`
+
+```
+ADZUNA_APP_ID=xxxx
+ADZUNA_SECRET=xxxx
+
+DATABASE_URL=postgresql://user:pass@localhost/jobs
+
+JWT_SECRET=random_secret
+```
+
+Python:
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+API_KEY=os.getenv("ADZUNA_SECRET")
+```
+
+Nicht:
+
+```python
+API_KEY="123456"
+```
+
+im Code.
+
+---
+
+## Phase 4 — Datenbank ersetzen
+
+Jetzt:
+
+```
+SQLite
+```
+
+Für Entwicklung ok.
+
+Produktion:
+
+```
+PostgreSQL
+```
+
+mit:
+
+```
+Docker
+
+postgres container
+        |
+        |
+FastAPI
+```
+
+docker-compose:
+
+```
+services:
+
+ backend:
+   build .
+
+ database:
+   image postgres
+
+```
+
+---
+
+## Phase 5 — echte Scraper (falls API fehlt)
+
+Wenn ein Portal keine API anbietet:
+
+```
+Scheduler
+     |
+     |
+Scraper
+     |
+     |
+BeautifulSoup / Playwright
+     |
+     |
+Parser
+     |
+     |
+Database
+```
+
+Beispiel:
+
+Portal HTML:
+
+```
+<div class="job">
+ Python Developer
+ BMW
+ Munich
+</div>
+```
+
+wird:
+
+```json
+{
+"title":"Python Developer",
+"company":"BMW",
+"city":"Munich"
+}
+```
+
+---
+
+## Phase 6 — Hintergrundprozesse
+
+Jetzt läuft dein Scraper nur wenn User klickt.
+
+Später:
+
+```
+Celery
+ |
+ |
+Redis
+ |
+ |
+every 6 hours
+
+collect_jobs()
+```
+
+Also:
+
+06:00
+
+```
+API holen
+|
+Daten speichern
+|
+alte Jobs löschen
+```
+
+---
+
+## Phase 7 — Suche und Filter
+
+Frontend:
+
+User:
+
+```
+City:
+Munich
+
+Salary:
+60000
+
+Category:
+IT
+```
+
+Request:
+
+```
+GET
+
+/api/jobs?
+
+city=Munich
+salary=60000
+category=IT
+```
+
+Backend:
+
+SQL:
+
+```sql
+SELECT *
+FROM jobs
+WHERE city='Munich'
+AND salary_min >= 60000
+AND category='IT';
+```
+
+---
+
+## Dein aktueller Projektstatus
+
+Du bist hier:
+
+```
+[███████░░░░░░░]
+
+Backend Struktur fertig
+FastAPI läuft
+Database vorhanden
+Models vorhanden
+Frontend verbunden
+
+ABER:
+
+❌ keine echte Jobquelle
+❌ keine API Keys
+❌ kein Auth System
+❌ kein PostgreSQL
+❌ keine Scheduler
+❌ keine echten Filter
+❌ keine Suchengine
+```
+
+---
+
+## Nächste konkrete Schritte
+
+Reihenfolge:
+
+1. SQLite Model verbessern
+2. PostgreSQL + Docker einbauen
+3. `.env` konfigurieren
+4. Eine echte Job API anschließen
+5. JSON normalisieren
+6. Speichern
+7. Filter API bauen
+8. Frontend mit echten Daten verbinden
+9. Scheduler hinzufügen
+10. Auth/JWT hinzufügen
+
+Momentan ist dein Backend das Grundgerüst. Die "Job Scout"-Funktionalität entsteht erst ab Schritt 4.

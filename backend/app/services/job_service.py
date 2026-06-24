@@ -1,8 +1,11 @@
+#backend/app/service/job_service.py
+
 from typing import List
 from sqlalchemy.orm import Session
 
 from app.scraper.indeed import scrape_indeed
-from app.api.models.job import Job
+#from app.models import Job  # Oder: from app.models.job import Job
+from app.models.job import Job
 
 
 def collect_jobs(city: str = "Munich") -> List[dict]:
@@ -10,22 +13,18 @@ def collect_jobs(city: str = "Munich") -> List[dict]:
 
 
 def persist_jobs(db: Session, jobs: List[dict]):
-    """Persist jobs into database. Skips duplicate URLs."""
+    """Persist jobs into the database. Skips duplicates by URL."""
     seen_urls = set()
 
     for j in jobs:
         url = j.get("url")
 
-        if not url:
-            continue
-
-        if url in seen_urls:
+        if not url or url in seen_urls:
             continue
 
         seen_urls.add(url)
 
         exists = db.query(Job).filter(Job.url == url).first()
-
         if exists:
             continue
 
@@ -33,7 +32,12 @@ def persist_jobs(db: Session, jobs: List[dict]):
             title=j.get("title"),
             company=j.get("company"),
             city=j.get("city"),
-            salary=j.get("salary"),
+            country=j.get("country", "Germany"),
+            salary_min=j.get("salary_min"),
+            salary_max=j.get("salary_max"),
+            currency=j.get("currency", "EUR"),
+            category=j.get("category"),
+            description=j.get("description"),
             url=url,
             source=j.get("source", "scraper"),
         )
