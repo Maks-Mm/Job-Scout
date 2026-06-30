@@ -1,4 +1,7 @@
 ﻿from .job import Job
 from .user import User
 
-__all__ = ["Job", "User"]
+__all__ = [
+    "Job",
+    "User"
+]

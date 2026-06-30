@@ -1,27 +1,43 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.jobs import router as jobs_router
-from app.core.database import Base, engine
-
-import app.models.job  # registers models with SQLAlchemy
-
-
-app = FastAPI(title="Job Scout API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+from app.core.database import (
+    Base,
+    engine
 )
 
-Base.metadata.create_all(bind=engine)
+from app.api.routes.jobs import router
 
-app.include_router(jobs_router)
+
+#import app.models.job
+
+#from app.models.job import Job
+
+import app.models
+
+
+
+Base.metadata.create_all(
+    bind=engine
+)
+
+
+
+app = FastAPI(
+    title="Job Scout API"
+)
+
+
+
+app.include_router(
+    router,
+    prefix="/api"
+)
+
 
 
 @app.get("/")
-async def root():
-    return {"status": "running"}
+def root():
+
+    return {
+        "status":"running"
+    }

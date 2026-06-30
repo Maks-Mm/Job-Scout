@@ -1,7 +1,90 @@
-{
-"title":"Python Developer",
-"company":"BMW",
-"city":"Munich",
-"salary_min":65000,
-"source":"Adzuna"
-}
+import requests
+
+from app.core.config import (
+    ADZUNA_APP_ID,
+    ADZUNA_API_KEY
+)
+
+
+
+def fetch_jobs(city):
+
+
+    if not ADZUNA_APP_ID:
+        return []
+
+
+    url = (
+        "https://api.adzuna.com/"
+        "v1/api/jobs/de/search/1"
+    )
+
+
+    params = {
+
+        "app_id":
+            ADZUNA_APP_ID,
+
+        "app_key":
+            ADZUNA_API_KEY,
+
+        "where":
+            city
+    }
+
+
+    response = requests.get(
+        url,
+        params=params
+    )
+
+
+    data=response.json()
+
+
+
+    result=[]
+
+
+    for job in data.get(
+        "results",
+        []
+    ):
+
+
+        result.append({
+
+            "title":
+                job.get("title"),
+
+
+            "company":
+                job.get("company",{}).get("display_name"),
+
+
+            "city":
+                city,
+
+
+            "salary_min":
+                job.get("salary_min"),
+
+
+            "salary_max":
+                job.get("salary_max"),
+
+
+            "currency":
+                "EUR",
+
+
+            "url":
+                job.get("redirect_url"),
+
+
+            "source":
+                "Adzuna"
+        })
+
+
+    return result
