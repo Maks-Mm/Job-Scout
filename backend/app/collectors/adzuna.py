@@ -1,90 +1,84 @@
+#backend/app/collectors/adzuna.py
+
 import requests
 
+from app.collectors.base import JobCollector
 from app.core.config import (
     ADZUNA_APP_ID,
     ADZUNA_API_KEY
 )
 
 
+class AdzunaCollector(JobCollector):
 
-def fetch_jobs(city):
+    def fetch_jobs(self, city):
 
-
-    if not ADZUNA_APP_ID:
-        return []
-
-
-    url = (
-        "https://api.adzuna.com/"
-        "v1/api/jobs/de/search/1"
-    )
+        if not ADZUNA_APP_ID:
+            return []
 
 
-    params = {
-
-        "app_id":
-            ADZUNA_APP_ID,
-
-        "app_key":
-            ADZUNA_API_KEY,
-
-        "where":
-            city
-    }
+        url = (
+            "https://api.adzuna.com/"
+            "v1/api/jobs/de/search/1"
+        )
 
 
-    response = requests.get(
-        url,
-        params=params
-    )
+        params = {
+
+            "app_id": ADZUNA_APP_ID,
+            "app_key": ADZUNA_API_KEY,
+            "where": city
+        }
 
 
-    data=response.json()
+        response = requests.get(
+            url,
+            params=params,
+            timeout=10
+        )
 
 
-
-    result=[]
-
-
-    for job in data.get(
-        "results",
-        []
-    ):
+        data = response.json()
 
 
-        result.append({
-
-            "title":
-                job.get("title"),
+        jobs=[]
 
 
-            "company":
-                job.get("company",{}).get("display_name"),
+        for job in data.get("results", []):
+
+            jobs.append({
+
+                "title":
+                    job.get("title"),
+
+                "company":
+                    job.get("company", {})
+                    .get("display_name"),
 
 
-            "city":
-                city,
+                "city":
+                    city,
 
 
-            "salary_min":
-                job.get("salary_min"),
+                "salary_min":
+                    job.get("salary_min"),
 
 
-            "salary_max":
-                job.get("salary_max"),
+                "salary_max":
+                    job.get("salary_max"),
 
 
-            "currency":
-                "EUR",
+                "currency":
+                    "EUR",
 
 
-            "url":
-                job.get("redirect_url"),
+                "url":
+                    job.get("redirect_url"),
 
 
-            "source":
-                "Adzuna"
-        })
+                "source":
+                    "Adzuna"
+            })
 
 
-    return result
+        return jobs

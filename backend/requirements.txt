@@ -1,6 +1,7 @@
+# Create requirements.txt with these lines:
 fastapi
 uvicorn
-sqlalchemy
-python-dotenv
-pydantic
 requests
+apscheduler
+python-dotenv
+# Add any other dependencies your project uses

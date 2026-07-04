@@ -1,5 +1,6 @@
+// frontend/app/components/JobCard.tsx
 interface Job {
-  id: number;
+  id: number | string;  // Changed from number to number | string
   title: string;
   company: string;
   city: string;

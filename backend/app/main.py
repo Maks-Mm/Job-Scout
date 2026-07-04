@@ -1,43 +1,27 @@
+#backend/app/main.py
+
 from fastapi import FastAPI
-
-from app.core.database import (
-    Base,
-    engine
-)
-
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.jobs import router
+from app.workers.scheduler import start_scheduler
 
+app = FastAPI()
 
-#import app.models.job
-
-#from app.models.job import Job
-
-import app.models
-
-
-
-Base.metadata.create_all(
-    bind=engine
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Your Next.js frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+app.include_router(router)
 
-
-app = FastAPI(
-    title="Job Scout API"
-)
-
-
-
-app.include_router(
-    router,
-    prefix="/api"
-)
-
-
+@app.on_event("startup")
+def startup():
+    start_scheduler()
 
 @app.get("/")
 def root():
-
-    return {
-        "status":"running"
-    }
+    return {"status": "Job Scout running"}

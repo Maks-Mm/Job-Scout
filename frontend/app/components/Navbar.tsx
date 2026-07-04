@@ -19,7 +19,7 @@ export default function Navbar() {
               alt="JobRadar logo"
               width={40}
               height={40}
-              className="rounded-lg object-contain"
+              className="h-10 w-10 rounded-lg object-contain"
             />
 
             <span className="text-xl font-bold text-blue-600">

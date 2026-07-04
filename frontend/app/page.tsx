@@ -9,7 +9,7 @@ import Loading from "./components/Loading";
 import EmptyState from "./components/EmptyState";
 
 interface Job {
-  id: number;
+  id: number | string;
   title: string;
   company: string;
   city: string;
@@ -47,7 +47,12 @@ export default function Home() {
       const data = await response.json();
 
       // normalization layer: API contract safety
-      const normalizedJobs = Array.isArray(data) ? data : [];
+      const normalizedJobs = Array.isArray(data)
+        ? data.map((job, index) => ({
+            ...job,
+            id: job.id ?? `${job.source ?? "job"}-${index}`,
+          }))
+        : [];
 
       setJobs(normalizedJobs);
     } catch (error) {
@@ -173,7 +178,12 @@ export default function Home() {
           {!loading && jobs.length === 0 && <EmptyState />}
 
           {!loading &&
-            jobs.map((job) => <JobCard key={job.id} job={job} />)}
+            jobs.map((job, index) => (
+              <JobCard
+                key={job.id ?? `${job.source ?? "job"}-${index}`}
+                job={job}
+              />
+            ))}
         </div>
       </main>
     </div>

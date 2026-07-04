@@ -1,39 +1,23 @@
-from sqlalchemy.orm import Session
+#backend/app/services/job_service.py
 
-from app.models.job import Job
-
-from app.collectors.adzuna import fetch_jobs
+from app.collectors import collectors
 
 
+def get_jobs(city):
 
-def collect_jobs(
-        city:str,
-        db:Session
-):
-
-    jobs = fetch_jobs(city)
+    all_jobs = []
+    next_id = 1
 
 
-    for item in jobs:
+    for collector in collectors:
+
+        jobs = collector.fetch_jobs(city)
+
+        for job in jobs:
+            job["id"] = next_id
+            next_id += 1
+
+        all_jobs.extend(jobs)
 
 
-        exists = db.query(Job).filter(
-            Job.url == item["url"]
-        ).first()
-
-
-        if exists:
-            continue
-
-
-        job = Job(**item)
-
-        db.add(job)
-
-
-
-    db.commit()
-
-
-
-    return db.query(Job).all()
+    return all_jobs
