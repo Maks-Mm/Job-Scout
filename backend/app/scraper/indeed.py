@@ -1,3 +1,4 @@
+#backend/app/scraper/indeed.py
 def scrape_indeed(city: str):
     """Fake scraper — replace with real API calls in Phase 2."""
     return [
