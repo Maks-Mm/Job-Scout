@@ -1,5 +1,6 @@
 #backend/app/collectors/adzuna.py
 
+
 import requests
 
 from app.collectors.base import JobCollector
