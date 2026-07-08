@@ -5,6 +5,7 @@ interface Job {
   company: string;
   city: string;
   salary: string;
+  date?: string;
   url: string;
   source: string;
 }
@@ -18,9 +19,10 @@ export default function JobCard({ job }: { job: Job }) {
             {job.title}
           </h3>
           <p className="text-gray-600 mt-1">{job.company}</p>
-          <div className="flex gap-4 mt-2 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
             <span>📍 {job.city}</span>
             <span>💰 {job.salary}</span>
+            {job.date && <span>🕒 {job.date}</span>}
             <span>🔗 {job.source}</span>
           </div>
         </div>

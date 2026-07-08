@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000); // hard cutoff
+    const timeout = setTimeout(() => controller.abort(), 10000); // hard cutoff
 
     const res = await fetch(backendUrl, {
       signal: controller.signal,

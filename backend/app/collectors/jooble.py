@@ -9,78 +9,41 @@ from app.core.config import JOOBLE_API_KEY
 class JoobleCollector(JobCollector):
 
     def fetch_jobs(self, city):
-
         if not JOOBLE_API_KEY:
             return []
 
-
-        url = (
-            "https://jooble.org/api/"
-            + JOOBLE_API_KEY
-        )
-
+        url = "https://jooble.org/api/" + JOOBLE_API_KEY
 
         payload = {
-
-            "keywords":
-                "backend developer",
-
-            "location":
-                city
+            "keywords": "Teilzeit",  # was "backend developer" — too narrow for this app's purpose
+            "location": city,
         }
 
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"[JoobleCollector] request failed: {e}")
+            return []
 
-        response = requests.post(
-            url,
-            json=payload,
-            timeout=10
-        )
+        data = response.json()
 
+        # TEMP DEBUG — remove once results are confirmed flowing
+        print(f"[JoobleCollector] city={city} totalCount={data.get('totalCount')} "
+              f"jobs_returned={len(data.get('jobs', []))}")
 
-        data=response.json()
-
-
-        jobs=[]
-
-
-        for job in data.get(
-            "jobs",
-            []
-        ):
-
+        jobs = []
+        for job in data.get("jobs", []):
             jobs.append({
-
-                "title":
-                    job.get("title"),
-
-                "company":
-                    job.get("company"),
-
-
-                "city":
-                    city,
-
-
-                "salary_min":
-                    None,
-
-
-                "salary_max":
-                    None,
-
-
-                "currency":
-                    "EUR",
-
-
-                "url":
-                    job.get("link"),
-
-
-                "source":
-                    "Jooble"
-
+                "title": job.get("title"),
+                "company": job.get("company"),
+                "city": city,
+                "date": job.get("created_at") or job.get("date") or job.get("posted_date"),
+                "salary_min": None,
+                "salary_max": None,
+                "currency": "EUR",
+                "url": job.get("link"),
+                "source": "Jooble",
             })
-
 
         return jobs

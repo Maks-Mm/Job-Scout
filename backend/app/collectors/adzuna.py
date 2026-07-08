@@ -37,6 +37,7 @@ class AdzunaCollector(JobCollector):
                 "title": job.get("title"),
                 "company": job.get("company", {}).get("display_name"),
                 "city": city,
+                "date": job.get("created") or job.get("created_at") or job.get("publication_date"),
                 "salary_min": job.get("salary_min"),
                 "salary_max": job.get("salary_max"),
                 "currency": "EUR",

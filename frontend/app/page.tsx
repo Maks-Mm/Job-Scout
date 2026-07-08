@@ -17,6 +17,7 @@ interface Job {
   salary: string;
   salary_min?: number;
   salary_max?: number;
+  date?: string;
   url: string;
   source: string;
 }
@@ -53,6 +54,8 @@ export default function Home() {
       const normalizedJobs = Array.isArray(data)
         ? data.map((job, index) => ({
             ...job,
+            date:
+              job.date ?? job.created_at ?? job.created ?? job.posted_at,
             salary:
               job.salary_min && job.salary_max
                 ? `€${job.salary_min} - €${job.salary_max}`

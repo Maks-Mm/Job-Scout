@@ -8,7 +8,7 @@ router = APIRouter()
 
 @router.get("/api/jobs")
 def jobs(city: str = "Munich", min_salary: int = 0, max_salary: int = 0):
-    result = get_jobs(city)
+    result = get_jobs(city, min_salary=min_salary, max_salary=max_salary)
     
     # DEBUG: Print the structure
     print("=" * 50)

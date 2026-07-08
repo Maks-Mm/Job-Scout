@@ -21,6 +21,7 @@ class ArbeitnowCollector(JobCollector):
                     "city": city,
                     "url": job.get("url"),
                     "source": "Arbeitnow",
+                    "date": job.get("created_at") or job.get("date") or job.get("publication_date"),
                     # Arbeitnow's API does not provide salary data.
                     # Explicitly set to None so the frontend normalization
                     # layer falls back to "Not specified" instead of
