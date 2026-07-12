@@ -19,8 +19,8 @@ app.add_middleware(
 app.include_router(router)
 
 @app.on_event("startup")
-def startup():
-    start_scheduler()
+def startup():  
+     start_scheduler()
 
 @app.get("/")
 def root():

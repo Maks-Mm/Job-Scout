@@ -1,7 +1,6 @@
 #backend/app/collectors/jooble.py
 
 import requests
-
 from app.collectors.base import JobCollector
 from app.core.config import JOOBLE_API_KEY
 
@@ -15,7 +14,7 @@ class JoobleCollector(JobCollector):
         url = "https://jooble.org/api/" + JOOBLE_API_KEY
 
         payload = {
-            "keywords": "Teilzeit",  # was "backend developer" — too narrow for this app's purpose
+            "keywords": "",  # was "backend developer" — too narrow for this app's purpose
             "location": city,
         }
 

@@ -28,5 +28,6 @@ def get_jobs(city, min_salary=None, max_salary=None):
             next_id += 1
 
             all_jobs.append(job)
+            print(job["source"])
 
     return all_jobs

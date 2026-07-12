@@ -1,7 +1,6 @@
 #backend/app/collectors/adzuna.py
 
 import requests
-
 from app.collectors.base import JobCollector
 from app.core.config import ADZUNA_APP_ID, ADZUNA_API_KEY
 print(repr(ADZUNA_APP_ID), repr(ADZUNA_API_KEY))
