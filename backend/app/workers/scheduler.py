@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.database import SessionLocal
 from app.models.job import Job
 from app.services.job_service import get_jobs
+from app.services.filtering import JobFilter
 
 scheduler = BackgroundScheduler()
 
@@ -19,7 +20,8 @@ def update_jobs():
         total_updated = 0
 
         for city in CITIES:
-            jobs = get_jobs(city)
+            filters = JobFilter(city=city)
+            jobs = get_jobs(filters)
 
             for job in jobs:
                 url = job.get("url")

@@ -24,9 +24,11 @@ interface Job {
 
 interface Filter {
   city: string;
+  keywords: string;
+  employmentType: string;
+  source?: string;
   minSalary: number;
   maxSalary: number;
-  keywords: string;
 }
 
 export default function Home() {
@@ -37,15 +39,21 @@ export default function Home() {
     minSalary: 150,
     maxSalary: 550,
     keywords: "",
+    employmentType: "all",
   });
   const [telegramId, setTelegramId] = useState("");
   const [showTelegramSetup, setShowTelegramSetup] = useState(false);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (overrideFilters?: Filter) => {
+    const activeFilters = overrideFilters ?? filters;
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/jobs?city=${filters.city}&min_salary=${filters.minSalary}&max_salary=${filters.maxSalary}`
+        `/api/jobs?city=${activeFilters.city}` +
+        `&keywords=${encodeURIComponent(activeFilters.keywords)}` +
+        `&employment_type=${encodeURIComponent(activeFilters.employmentType)}` +
+        `&min_salary=${activeFilters.minSalary}` +
+        `&max_salary=${activeFilters.maxSalary}`
       );
 
       const data = await response.json();
@@ -91,7 +99,7 @@ export default function Home() {
       }
     }
 
-    await fetchJobs();
+    await fetchJobs(newFilter);
   };
 
   const setupTelegram = () => {

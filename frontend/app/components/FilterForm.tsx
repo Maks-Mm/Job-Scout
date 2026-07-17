@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 interface Filter {
     city: string;
+    keywords: string;
+    employmentType: string;
+    source?: string;
     minSalary: number;
     maxSalary: number;
-    keywords: string;
 }
 
 interface FilterFormProps {
@@ -60,14 +62,16 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
     const [minSalary, setMinSalary] = useState(initialFilters.minSalary);
     const [maxSalary, setMaxSalary] = useState(initialFilters.maxSalary);
     const [keywords, setKeywords] = useState(initialFilters.keywords);
+    const [employmentType, setEmploymentType] = useState(initialFilters.employmentType);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         onSave({
             city,
             minSalary,
             maxSalary,
             keywords,
+            employmentType,
         });
     };
 
@@ -122,6 +126,22 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         onChange={(e) => setKeywords(e.target.value)}
                         className="w-full border rounded-lg p-2"
                     />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Employment Type
+                    </label>
+                    <select
+                        value={employmentType}
+                        onChange={(e) => setEmploymentType(e.target.value)}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        <option value="all">Alle</option>
+                        <option value="fulltime">Vollzeit</option>
+                        <option value="parttime">Teilzeit</option>
+                        <option value="mini">Minijob</option>
+                    </select>
                 </div>
 
                 <div>

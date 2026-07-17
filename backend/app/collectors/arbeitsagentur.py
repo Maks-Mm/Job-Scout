@@ -1,4 +1,4 @@
-#backend/app/collectors/arbeitagentur.py
+# backend/app/collectors/arbeitagentur.py
 
 import requests
 
@@ -18,13 +18,19 @@ CITY_MAP = {
 
 class ArbeitsagenturCollector(JobCollector):
 
-    def fetch_jobs(self, city: str):
-        search_city = CITY_MAP.get(city, city)
+    def fetch_jobs(self, filter):
+        search_city = CITY_MAP.get(filter.city, filter.city)
 
         params = {
             "wo": search_city,
             "size": 50,
         }
+
+        if filter.employment_type == "parttime":
+            params["arbeitszeit"] = "tz"
+        elif filter.employment_type == "fulltime":
+            params["arbeitszeit"] = "vz"
+        # else: no employment_type filter set -> omit arbeitszeit entirely
 
         headers = {
             "X-API-Key": API_KEY,
