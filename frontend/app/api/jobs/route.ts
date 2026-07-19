@@ -10,22 +10,32 @@ export async function GET(req: Request) {
     "http://localhost:8000";
 
   const backendUrl =
-    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}` +
-    `&keywords=${encodeURIComponent(searchParams.get("keywords") ?? "")}` +
-    `&employment_type=${encodeURIComponent(searchParams.get("employment_type") ?? "")}` +
-    `&min_salary=${encodeURIComponent(searchParams.get("min_salary") ?? "")}` +
-    `&max_salary=${encodeURIComponent(searchParams.get("max_salary") ?? "")}`;
+    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}`;
+
+  console.log("BACKEND =", backend);
+  console.log("URL =", backendUrl);
 
   try {
     const res = await fetch(backendUrl);
 
-    if (!res.ok) {
-      return NextResponse.json([]);
-    }
+    console.log("STATUS =", res.status);
 
-    return NextResponse.json(await res.json());
+    const text = await res.text();
 
-  } catch {
-    return NextResponse.json([]);
+    console.log(text.substring(0,500));
+
+    return new Response(text, {
+      status: res.status,
+      headers: {
+        "Content-Type":"application/json"
+      }
+    });
+
+  } catch (e) {
+    console.error(e);
+
+    return NextResponse.json({
+      error:String(e)
+    });
   }
 }
