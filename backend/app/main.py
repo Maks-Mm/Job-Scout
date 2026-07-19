@@ -4,15 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.jobs import router
 from app.workers.scheduler import start_scheduler
-import os
 
 app = FastAPI()
 
-# CORS middleware - WICHTIG für Render!
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://dein-frontend-name.onrender.com",  # DEINE ECHTE FRONTEND URL
+        "https://DEIN-FRONTEND-NAME.onrender.com",  # Deine Frontend URL
         "http://localhost:3000"
     ],
     allow_credentials=True,
