@@ -5,37 +5,44 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  const backend =
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000";
+  const backend = process.env.NEXT_PUBLIC_API_URL!;
 
   const backendUrl =
-    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}`;
+    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}` +
+    `&keywords=${encodeURIComponent(searchParams.get("keywords") ?? "")}` +
+    `&employment_type=${encodeURIComponent(searchParams.get("employment_type") ?? "")}` +
+    `&min_salary=${encodeURIComponent(searchParams.get("min_salary") ?? "")}` +
+    `&max_salary=${encodeURIComponent(searchParams.get("max_salary") ?? "")}`;
 
-  console.log("BACKEND =", backend);
-  console.log("URL =", backendUrl);
+  console.log("Backend URL:", backendUrl);
 
   try {
     const res = await fetch(backendUrl);
 
-    console.log("STATUS =", res.status);
+    console.log("Backend status:", res.status);
 
     const text = await res.text();
 
-    console.log(text.substring(0,500));
+    console.log("Backend response:");
+    console.log(text);
 
-    return new Response(text, {
+    return new NextResponse(text, {
       status: res.status,
       headers: {
-        "Content-Type":"application/json"
-      }
+        "Content-Type": "application/json",
+      },
     });
 
   } catch (e) {
     console.error(e);
 
-    return NextResponse.json({
-      error:String(e)
-    });
+    return NextResponse.json(
+      {
+        error: String(e),
+      },
+      {
+        status: 503,
+      }
+    );
   }
 }
