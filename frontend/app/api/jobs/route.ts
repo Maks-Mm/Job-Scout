@@ -29,12 +29,12 @@ export async function GET(req: Request) {
     return new NextResponse(text, {
       status: res.status,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json", // Oder res.headers.get("content-type") || "application/json"
       },
     });
 
   } catch (e) {
-    console.error(e);
+    console.error("Fetch error:", e);
 
     return NextResponse.json(
       {
