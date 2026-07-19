@@ -5,37 +5,27 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  const city = searchParams.get("city");
-  const keywords = searchParams.get("keywords");
-  const employment_type = searchParams.get("employment_type");
-  const min_salary = searchParams.get("min_salary");
-  const max_salary = searchParams.get("max_salary");
+  const backend =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8000";
 
-  const backendUrl = `http://localhost:8000/api/jobs?city=${encodeURIComponent(city ?? "")}` +
-    `&keywords=${encodeURIComponent(keywords ?? "")}` +
-    `&employment_type=${encodeURIComponent(employment_type ?? "")}` +
-    `&min_salary=${encodeURIComponent(min_salary ?? "")}` +
-    `&max_salary=${encodeURIComponent(max_salary ?? "")}`;
+  const backendUrl =
+    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}` +
+    `&keywords=${encodeURIComponent(searchParams.get("keywords") ?? "")}` +
+    `&employment_type=${encodeURIComponent(searchParams.get("employment_type") ?? "")}` +
+    `&min_salary=${encodeURIComponent(searchParams.get("min_salary") ?? "")}` +
+    `&max_salary=${encodeURIComponent(searchParams.get("max_salary") ?? "")}`;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // hard cutoff
-
-    const res = await fetch(backendUrl, {
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
+    const res = await fetch(backendUrl);
 
     if (!res.ok) {
-      return NextResponse.json([]); // degrade gracefully
+      return NextResponse.json([]);
     }
 
-    const data = await res.json();
+    return NextResponse.json(await res.json());
 
-    return NextResponse.json(Array.isArray(data) ? data : []);
-  } catch (err) {
-    // backend sleeping/offline
+  } catch {
     return NextResponse.json([]);
   }
 }
