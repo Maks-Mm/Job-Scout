@@ -1,48 +1,72 @@
 //frontend/app/api/jobs/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
 
-  const backend = process.env.NEXT_PUBLIC_API_URL!;
+  const backend = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
 
-  const backendUrl =
-    `${backend}/api/jobs?city=${encodeURIComponent(searchParams.get("city") ?? "")}` +
-    `&keywords=${encodeURIComponent(searchParams.get("keywords") ?? "")}` +
-    `&employment_type=${encodeURIComponent(searchParams.get("employment_type") ?? "")}` +
-    `&min_salary=${encodeURIComponent(searchParams.get("min_salary") ?? "")}` +
-    `&max_salary=${encodeURIComponent(searchParams.get("max_salary") ?? "")}`;
+  if (!backend) {
+    return NextResponse.json(
+      { error: "API_URL is not configured" },
+      { status: 500 }
+    );
+  }
 
-  console.log("Backend URL:", backendUrl);
+  const url = new URL("/api/jobs", backend);
+
+  searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
 
   try {
-    const res = await fetch(backendUrl);
-
-    console.log("Backend status:", res.status);
-
-    const text = await res.text();
-
-    console.log("Backend response:");
-    console.log(text);
-
-    return new NextResponse(text, {
-      status: res.status,
-      headers: {
-        "Content-Type": "application/json", // Oder res.headers.get("content-type") || "application/json"
-      },
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
     });
 
-  } catch (e) {
-    console.error("Fetch error:", e);
+    const contentType = res.headers.get("content-type") || "";
+    const body = await res.text();
+
+    console.log("Backend:", url.toString());
+    console.log("Status:", res.status);
+    console.log("Content-Type:", contentType);
+
+    if (!res.ok) {
+      return NextResponse.json(
+        {
+          error: "Backend returned an error",
+          status: res.status,
+          body,
+        },
+        { status: res.status }
+      );
+    }
+
+    if (!contentType.includes("application/json")) {
+      return NextResponse.json(
+        {
+          error: "Backend did not return JSON",
+          received: body.substring(0, 500),
+        },
+        { status: 502 }
+      );
+    }
+
+    return new NextResponse(body, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (err) {
+    console.error(err);
 
     return NextResponse.json(
       {
-        error: String(e),
+        error: err instanceof Error ? err.message : "Unknown error",
       },
-      {
-        status: 503,
-      }
+      { status: 503 }
     );
   }
 }

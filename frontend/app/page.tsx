@@ -46,35 +46,60 @@ export default function Home() {
 
   const fetchJobs = async (overrideFilters?: Filter) => {
     const activeFilters = overrideFilters ?? filters;
+
     setLoading(true);
+
     try {
       const response = await fetch(
-        `/api/jobs?city=${activeFilters.city}` +
+        `/api/jobs?city=${encodeURIComponent(activeFilters.city)}` +
         `&keywords=${encodeURIComponent(activeFilters.keywords)}` +
         `&employment_type=${encodeURIComponent(activeFilters.employmentType)}` +
         `&min_salary=${activeFilters.minSalary}` +
         `&max_salary=${activeFilters.maxSalary}`
       );
 
+      const contentType = response.headers.get("content-type");
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API Error:", response.status, errorText);
+
+        setJobs([]);
+        return;
+      }
+
+      if (!contentType?.includes("application/json")) {
+        const text = await response.text();
+        console.error("Expected JSON but received:", text);
+
+        setJobs([]);
+        return;
+      }
+
       const data = await response.json();
 
-      // normalization layer: API contract safety
       const normalizedJobs = Array.isArray(data)
-        ? data.map((job, index) => ({
+        ? data.map((job: any, index: number) => ({
             ...job,
-            date:
-              job.date ?? job.created_at ?? job.created ?? job.posted_at,
-            salary:
-              job.salary_min && job.salary_max
-                ? `€${job.salary_min} - €${job.salary_max}`
-                : "Not specified",
             id: job.id ?? `${job.source ?? "job"}-${index}`,
+            date:
+              job.date ??
+              job.created_at ??
+              job.created ??
+              job.posted_at ??
+              "",
+
+            salary:
+              job.salary ??
+              (job.salary_min && job.salary_max
+                ? `€${job.salary_min} - €${job.salary_max}`
+                : "Not specified"),
           }))
         : [];
 
       setJobs(normalizedJobs);
-    } catch (error) {
-      console.error("Error fetching jobs:", error);
+    } catch (err) {
+      console.error(err);
       setJobs([]);
     } finally {
       setLoading(false);
