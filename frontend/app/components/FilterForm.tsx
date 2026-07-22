@@ -1,3 +1,5 @@
+//frontend/app/components/FilterFrom.tsx
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -5,6 +7,7 @@ import { useState, type FormEvent } from "react";
 interface Filter {
     city: string;
     keywords: string;
+    jobCategory: string;
     employmentType: string;
     source?: string;
     minSalary: number;
@@ -27,7 +30,7 @@ const GERMAN_CITIES = [
     { value: "Düsseldorf", label: "Düsseldorf 👔", region: "West" },
     { value: "Stuttgart", label: "Stuttgart 🚗", region: "South" },
     { value: "Nuremberg", label: "Nuremberg 🏭", region: "South" },
-    
+
     // Strong economic centers (Second Tier)
     { value: "Essen", label: "Essen 🏢", region: "West" },
     { value: "Dortmund", label: "Dortmund 📊", region: "West" },
@@ -36,7 +39,7 @@ const GERMAN_CITIES = [
     { value: "Leipzig", label: "Leipzig 📈", region: "East" },
     { value: "Hanover", label: "Hanover 📋", region: "North" },
     { value: "Mannheim", label: "Mannheim 🏗️", region: "West" },
-    
+
     // Regional economic centers (Third Tier)
     { value: "Augsburg", label: "Augsburg 🔧", region: "South" },
     { value: "Bonn", label: "Bonn 🏛️", region: "West" },
@@ -48,30 +51,40 @@ const GERMAN_CITIES = [
     { value: "Magdeburg", label: "Magdeburg 🏗️", region: "East" },
 ];
 
-// Group cities by region for better organization
-const CITIES_BY_REGION = GERMAN_CITIES.reduce((acc, city) => {
-    if (!acc[city.region]) {
-        acc[city.region] = [];
-    }
-    acc[city.region].push(city);
-    return acc;
-}, {} as Record<string, typeof GERMAN_CITIES>);
+// Job categories covering the majority of Teilzeit / Minijob postings
+const JOB_CATEGORIES = [
+    { value: "all", label: "Alle Kategorien" },
+    { value: "buero", label: "🏢 Büro & Verwaltung" },
+    { value: "verkauf", label: "🛒 Verkauf & Einzelhandel" },
+    { value: "gastronomie", label: "🍽 Gastronomie & Tourismus" },
+    { value: "logistik", label: "🚚 Transport, Logistik & Lager" },
+    { value: "bau", label: "🏗 Bau, Handwerk & Produktion" },
+    { value: "kundenservice", label: "📞 Kundenservice & Call Center" },
+    { value: "pflege", label: "❤️ Soziales & Pflege" },
+    { value: "it", label: "💻 IT & Technik" },
+    { value: "ausbildung", label: "🎓 Ausbildung" },
+    { value: "praktikum", label: "📚 Praktika" },
+    { value: "mini", label: "💼 Mini- & Nebenjobs" },
+    { value: "weitere", label: "📦 Sonstige Jobs" },
+];
 
 export default function FilterForm({ onSave, initialFilters }: FilterFormProps) {
     const [city, setCity] = useState(initialFilters.city);
     const [minSalary, setMinSalary] = useState(initialFilters.minSalary);
     const [maxSalary, setMaxSalary] = useState(initialFilters.maxSalary);
     const [keywords, setKeywords] = useState(initialFilters.keywords);
+    const [jobCategory, setJobCategory] = useState(initialFilters.jobCategory ?? "all");
     const [employmentType, setEmploymentType] = useState(initialFilters.employmentType);
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         onSave({
             city,
+            keywords,
+            jobCategory,
+            employmentType,
             minSalary,
             maxSalary,
-            keywords,
-            employmentType,
         });
     };
 
@@ -111,7 +124,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         <option value="Both">🌍 All Cities</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                        {GERMAN_CITIES.find(c => c.value === city)?.label || "Select a city"}
+                        {GERMAN_CITIES.find((c) => c.value === city)?.label || "Select a city"}
                     </p>
                 </div>
 
@@ -126,6 +139,23 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         onChange={(e) => setKeywords(e.target.value)}
                         className="w-full border rounded-lg p-2"
                     />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Job Category
+                    </label>
+                    <select
+                        value={jobCategory}
+                        onChange={(e) => setJobCategory(e.target.value)}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        {JOB_CATEGORIES.map((category) => (
+                            <option key={category.value} value={category.value}>
+                                {category.label}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div>
@@ -153,7 +183,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         value={minSalary}
                         onChange={(e) => setMinSalary(Number(e.target.value))}
                         className="w-full border rounded-lg p-2"
-                        placeholder="e.g., 40000"
+                        placeholder="e.g., 150"
                     />
                 </div>
 
@@ -166,7 +196,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         value={maxSalary}
                         onChange={(e) => setMaxSalary(Number(e.target.value))}
                         className="w-full border rounded-lg p-2"
-                        placeholder="e.g., 80000"
+                        placeholder="e.g., 550"
                     />
                 </div>
             </div>

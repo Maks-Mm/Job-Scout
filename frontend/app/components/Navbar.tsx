@@ -1,3 +1,5 @@
+//frontend/app/components/Navbar.tsx
+
 import Image from "next/image";
 import Link from "next/link";
 
@@ -9,24 +11,13 @@ export default function Navbar() {
 
         <div className="flex justify-between h-16">
 
-          <Link
-            href="/"
-            className="flex items-center gap-2"
-          >
-
-            <Image
-              src="/ImageScoutLogo.png"
-              alt="JobRadar logo"
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-lg object-contain"
+          <div className="flex items-center gap-2">
+            <img
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUC6HSLegg6eairvNwiY42n1ik5VIcynMo9vs19eHzpw&s"
+              alt="JobRadar Logo"
+              className="h-10 w-17 rounded"
             />
-
-            <span className="text-xl font-bold text-blue-600">
-              JobRadar
-            </span>
-
-          </Link>
+          </div>
 
 
           <div className="flex items-center gap-4">

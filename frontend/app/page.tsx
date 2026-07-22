@@ -1,4 +1,5 @@
 //frontend/app/page.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -25,6 +26,7 @@ interface Job {
 interface Filter {
   city: string;
   keywords: string;
+  jobCategory: string;
   employmentType: string;
   source?: string;
   minSalary: number;
@@ -36,10 +38,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filter>({
     city: "Munich",
-    minSalary: 150,
-    maxSalary: 550,
     keywords: "",
+    jobCategory: "all",
     employmentType: "all",
+    minSalary: 0,
+    maxSalary: 0,
   });
   const [telegramId, setTelegramId] = useState("");
   const [showTelegramSetup, setShowTelegramSetup] = useState(false);
@@ -53,6 +56,7 @@ export default function Home() {
       const response = await fetch(
         `/api/jobs?city=${encodeURIComponent(activeFilters.city)}` +
         `&keywords=${encodeURIComponent(activeFilters.keywords)}` +
+        `&job_category=${encodeURIComponent(activeFilters.jobCategory)}` +
         `&employment_type=${encodeURIComponent(activeFilters.employmentType)}` +
         `&min_salary=${activeFilters.minSalary}` +
         `&max_salary=${activeFilters.maxSalary}`
@@ -80,21 +84,21 @@ export default function Home() {
 
       const normalizedJobs = Array.isArray(data)
         ? data.map((job: any, index: number) => ({
-            ...job,
-            id: job.id ?? `${job.source ?? "job"}-${index}`,
-            date:
-              job.date ??
-              job.created_at ??
-              job.created ??
-              job.posted_at ??
-              "",
+          ...job,
+          id: job.id ?? `${job.source ?? "job"}-${index}`,
+          date:
+            job.date ??
+            job.created_at ??
+            job.created ??
+            job.posted_at ??
+            "",
 
-            salary:
-              job.salary ??
-              (job.salary_min && job.salary_max
-                ? `€${job.salary_min} - €${job.salary_max}`
-                : "Not specified"),
-          }))
+          salary:
+            job.salary ??
+            (job.salary_min && job.salary_max
+              ? `€${job.salary_min} - €${job.salary_max}`
+              : "Not specified"),
+        }))
         : [];
 
       setJobs(normalizedJobs);
@@ -149,7 +153,7 @@ export default function Home() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">JobRadar</h1>
           <p className="text-gray-600 mt-2">
-            Find Teilzeit jobs in Munich & Augsburg (150-550€/month)
+            Find Teilzeit/Vollzeit Jobs in ganz Deutschland (150-3500/month)
           </p>
         </div>
 
