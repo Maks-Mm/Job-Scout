@@ -9,7 +9,7 @@ def get_jobs(filters: JobFilter):
     all_jobs = []
     next_id = 1
 
-    for collector in collectors:
+    for collector in collectors[:1]:
 
         jobs = collector.fetch_jobs(filters)
 
