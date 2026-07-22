@@ -1,11 +1,12 @@
-//frontend/app/api/jobs/route.ts
+// frontend/app/api/jobs/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
-  const backend = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+  const backend = process.env.API_URL;
+  console.log("Backend URL =", backend);
 
   if (!backend) {
     return NextResponse.json(
