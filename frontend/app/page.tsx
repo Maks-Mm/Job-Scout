@@ -41,8 +41,8 @@ export default function Home() {
     keywords: "",
     jobCategory: "all",
     employmentType: "all",
-    minSalary: 0,
-    maxSalary: 0,
+    minSalary: 150,
+    maxSalary: 10000,
   });
   const [telegramId, setTelegramId] = useState("");
   const [showTelegramSetup, setShowTelegramSetup] = useState(false);
