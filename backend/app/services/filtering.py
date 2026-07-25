@@ -64,17 +64,16 @@ CATEGORY_KEYWORDS = {
 
 
 def filter_jobs(jobs: list, filters: JobFilter):
-
-    print("filter_jobs called")
-    print(filters.model_dump())
-
     result = []
 
     for job in jobs:
+        if not job:
+            continue
 
-        # Keyword
+        if not isinstance(job, dict):
+            continue
+
         if filters.keywords:
-
             text = (
                 f"{job.get('title', '')} "
                 f"{job.get('company', '')}"
@@ -83,14 +82,8 @@ def filter_jobs(jobs: list, filters: JobFilter):
             if filters.keywords.lower() not in text:
                 continue
 
-        # Job category
         if filters.job_category and filters.job_category != "all":
-
             category_words = CATEGORY_KEYWORDS.get(filters.job_category, [])
-
-            # Debug: zeigt welche Felder ein Job überhaupt hat
-            print(job.keys())
-            print(job.get("title"))
 
             text = (
                 f"{job.get('title', '')} "
@@ -101,24 +94,20 @@ def filter_jobs(jobs: list, filters: JobFilter):
             if not any(word in text for word in category_words):
                 continue
 
-        # Source
         if filters.source:
-
             if job.get("source") != filters.source:
                 continue
 
-        # Salary
-        if filters.min_salary:
-            salary_max = job.get("salary_max")
-            if salary_max is not None:
-                if salary_max < filters.min_salary:
-                    continue
+        salary_min = job.get("salary_min")
+        salary_max = job.get("salary_max")
 
-        if filters.max_salary:
-            salary_min = job.get("salary_min")
-            if salary_min is not None:
-                if salary_min > filters.max_salary:
-                    continue
+        if filters.min_salary is not None and filters.min_salary > 0:
+            if salary_min is not None and salary_min < filters.min_salary:
+                continue
+
+        if filters.max_salary is not None and filters.max_salary > 0:
+            if salary_max is not None and salary_max > filters.max_salary:
+                continue
 
         result.append(job)
 
