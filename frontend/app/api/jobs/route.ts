@@ -2,6 +2,29 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2, delayMs = 3000) {
+  let lastRes: Response | null = null;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      lastRes = res;
+      // If success, return immediately
+      if (res.ok) return res;
+      // Only retry on 502 (gateway) which likely indicates cold-start proxy error
+      if (res.status !== 502) return res;
+    } catch (err) {
+      lastRes = null;
+    }
+
+    if (i < retries) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  if (lastRes) return lastRes;
+  throw new Error("fetchWithRetry: no response returned");
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
@@ -22,9 +45,7 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    const res = await fetch(url.toString(), {
-      cache: "no-store",
-    });
+    const res = await fetchWithRetry(url.toString(), { cache: "no-store" }, 2, 3000);
 
     const contentType = res.headers.get("content-type") || "";
     const body = await res.text();
