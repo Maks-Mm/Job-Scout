@@ -59,9 +59,23 @@ class KleinanzeigenCollector(JobCollector):
 
         jobs = []
 
-        listings = soup.select(
-            "article.aditem, li.ad-listitem"
-        )
+        # WICHTIG: "article.aditem, li.ad-listitem" war ein OR-Selektor.
+        # Auf kleinanzeigen.de ist jede Anzeige aktuell ein
+        # <article class="aditem">, das INNERHALB eines
+        # <li class="ad-listitem"> liegt -> beide Selektoren matchen
+        # dieselbe Anzeige, jede wurde also zweimal eingesammelt.
+        # Nur noch das äußere li.ad-listitem verwenden und darin
+        # gezielt nach article.aditem suchen (falls vorhanden),
+        # sonst das li selbst als Container nehmen.
+        listings = soup.select("li.ad-listitem")
+
+        # Zusätzliche Absicherung gegen zukünftige HTML-Änderungen:
+        # falls li.ad-listitem mal nicht mehr existiert, auf
+        # article.aditem zurückfallen, aber dann NICHT beide zugleich.
+        if not listings:
+            listings = soup.select("article.aditem")
+
+        seen_urls = set()
 
         for item in listings:
 
@@ -88,6 +102,26 @@ class KleinanzeigenCollector(JobCollector):
                 if "vollzeit" not in title.lower():
                     continue
 
+            href = (
+                link_element.get("href")
+                if link_element
+                else None
+            )
+
+            job_url = (
+                "https://www.kleinanzeigen.de" + href
+                if href
+                else None
+            )
+
+            # Zusätzliche Deduplizierung über die URL als Sicherheitsnetz,
+            # falls sich das HTML wieder ändert und erneut Überlappungen
+            # zwischen Selektoren auftreten.
+            if job_url and job_url in seen_urls:
+                continue
+
+            if job_url:
+                seen_urls.add(job_url)
 
             jobs.append(
                 {
@@ -98,13 +132,7 @@ class KleinanzeigenCollector(JobCollector):
                     "salary_min": None,
                     "salary_max": None,
                     "currency": "EUR",
-                    "url": (
-                        "https://www.kleinanzeigen.de"
-                        + link_element["href"]
-                        if link_element
-                        and link_element.get("href")
-                        else None
-                    ),
+                    "url": job_url,
                     "source": "Kleinanzeigen",
                 }
             )
