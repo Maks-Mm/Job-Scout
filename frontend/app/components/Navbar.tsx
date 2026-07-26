@@ -29,13 +29,6 @@ export default function Navbar() {
               Dashboard
             </Link>
 
-            <Link
-              href="/jobs"
-              className="text-gray-700 hover:text-blue-600"
-            >
-              Jobs
-            </Link>
-
             <button className="bg-blue-600 text-white px-4 py-2 rounded-lg">
               Get Alerts
             </button>
