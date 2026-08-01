@@ -1,6 +1,5 @@
 #backend/app/main.py
 
-#backend/app/main.py
 
 from fastapi import FastAPI
 import os

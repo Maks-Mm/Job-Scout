@@ -27,3 +27,16 @@ def test_max_salary_filters_out_jobs_above_threshold():
 
     assert len(result) == 1
     assert result[0]["title"] == "Job B"
+
+
+def test_country_and_language_filters_jobs():
+    filters = JobFilter(city="Zurich", country="Switzerland", language="de")
+    jobs = [
+        {"title": "Job A", "country": "Switzerland", "language": "de"},
+        {"title": "Job B", "country": "Germany", "language": "de"},
+        {"title": "Job C", "country": "Switzerland", "language": "en"},
+    ]
+
+    result = filter_jobs(jobs, filters)
+
+    assert [job["title"] for job in result] == ["Job A"]

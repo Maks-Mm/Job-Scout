@@ -3,12 +3,14 @@
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, wait
 from app.services.filtering import JobFilter, filter_jobs
-from app.collectors import collectors
+# FIX: Import von collectors statt services
+from app.collectors import get_collectors
 
 
 def get_jobs(filters: JobFilter):
     all_jobs = []
     next_id = 1
+    collectors = get_collectors(filters.country)
 
     def run_collector(collector):
         try:

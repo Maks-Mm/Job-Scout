@@ -9,7 +9,9 @@ router = APIRouter()
 
 @router.get("/api/jobs")
 def jobs(
+    country: str | None = "Germany",
     city: str = "Munich",
+    language: str | None = "de",
     keywords: str | None = None,
     job_category: str | None = None,
     employment_type: str | None = None,
@@ -19,7 +21,9 @@ def jobs(
 ):
 
     filters = JobFilter(
+        country=country,
         city=city,
+        language=language,
         keywords=keywords,
         job_category=job_category,
         employment_type=employment_type,

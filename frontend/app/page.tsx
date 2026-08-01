@@ -24,7 +24,9 @@ interface Job {
 }
 
 interface Filter {
+  country: string;
   city: string;
+  language: string;
   keywords: string;
   jobCategory: string;
   employmentType: string;
@@ -37,7 +39,9 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filter>({
+    country: "Germany",
     city: "Munich",
+    language: "de",
     keywords: "",
     jobCategory: "all",
     employmentType: "all",
@@ -54,7 +58,9 @@ export default function Home() {
 
     try {
       const response = await fetch(
-        `/api/jobs?city=${encodeURIComponent(activeFilters.city)}` +
+        `/api/jobs?country=${encodeURIComponent(activeFilters.country)}` +
+        `&city=${encodeURIComponent(activeFilters.city)}` +
+        `&language=${encodeURIComponent(activeFilters.language)}` +
         `&keywords=${encodeURIComponent(activeFilters.keywords)}` +
         `&job_category=${encodeURIComponent(activeFilters.jobCategory)}` +
         `&employment_type=${encodeURIComponent(activeFilters.employmentType)}` +

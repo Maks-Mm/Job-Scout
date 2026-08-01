@@ -39,16 +39,39 @@ class JoobleCollector(JobCollector):
 
         jobs = []
         for job in data.get("jobs", []):
-            jobs.append({
-                "title": job.get("title"),
-                "company": job.get("company"),
-                "city": filter.city,
-                "date": job.get("created_at") or job.get("date") or job.get("posted_date"),
-                "salary_min": None,
-                "salary_max": None,
-                "currency": "EUR",
-                "url": job.get("link"),
-                "source": "Jooble",
-            })
+          jobs.append({
+    "title": job.get("title", ""),
+    "company": job.get("company", ""),
+    "city": filter.city,
+    "country": filter.country,
+    "language": getattr(filter, "language", "de"),
+
+    "description": job.get("snippet", "") or job.get("description", ""),
+
+    "category": (
+        job.get("category")
+        or job.get("industry")
+        or ""
+    ),
+
+    "employment_type": (
+        job.get("type")
+        or ""
+    ),
+
+    "date": (
+        job.get("created_at")
+        or job.get("date")
+        or job.get("posted_date")
+        or ""
+    ),
+
+    "salary_min": None,
+    "salary_max": None,
+    "currency": "EUR",
+
+    "url": job.get("link"),
+    "source": "Jooble",
+})
 
         return jobs

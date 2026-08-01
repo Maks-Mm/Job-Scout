@@ -1,11 +1,13 @@
-//frontend/app/components/FilterFrom.tsx
+//frontend/app/components/FilterForm.tsx
 
 "use client";
 
 import { useState, type FormEvent } from "react";
 
 interface Filter {
+    country: string;
     city: string;
+    language: string;
     keywords: string;
     jobCategory: string;
     employmentType: string;
@@ -19,37 +21,75 @@ interface FilterFormProps {
     initialFilters: Filter;
 }
 
-// Top economically developed cities in Germany with job market data
-const GERMAN_CITIES = [
-    // Major economic hubs (Top Tier)
-    { value: "Berlin", label: "Berlin 🏛️", region: "East" },
-    { value: "Munich", label: "Munich 💰", region: "South" },
-    { value: "Hamburg", label: "Hamburg ⚓", region: "North" },
-    { value: "Frankfurt", label: "Frankfurt 💹", region: "West" },
-    { value: "Cologne", label: "Cologne 🏗️", region: "West" },
-    { value: "Düsseldorf", label: "Düsseldorf 👔", region: "West" },
-    { value: "Stuttgart", label: "Stuttgart 🚗", region: "South" },
-    { value: "Nuremberg", label: "Nuremberg 🏭", region: "South" },
-
-    // Strong economic centers (Second Tier)
-    { value: "Essen", label: "Essen 🏢", region: "West" },
-    { value: "Dortmund", label: "Dortmund 📊", region: "West" },
-    { value: "Bremen", label: "Bremen 🚢", region: "North" },
-    { value: "Dresden", label: "Dresden 🖥️", region: "East" },
-    { value: "Leipzig", label: "Leipzig 📈", region: "East" },
-    { value: "Hanover", label: "Hanover 📋", region: "North" },
-    { value: "Mannheim", label: "Mannheim 🏗️", region: "West" },
-
-    // Regional economic centers (Third Tier)
-    { value: "Augsburg", label: "Augsburg 🔧", region: "South" },
-    { value: "Bonn", label: "Bonn 🏛️", region: "West" },
-    { value: "Münster", label: "Münster 📚", region: "West" },
-    { value: "Karlsruhe", label: "Karlsruhe 🔬", region: "South" },
-    { value: "Freiburg", label: "Freiburg 🌿", region: "South" },
-    { value: "Wiesbaden", label: "Wiesbaden 🏢", region: "West" },
-    { value: "Kiel", label: "Kiel ⚓", region: "North" },
-    { value: "Magdeburg", label: "Magdeburg 🏗️", region: "East" },
-];
+// Top cities by country
+const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>> = {
+    Germany: [
+        // Major economic hubs (Top Tier)
+        { value: "Berlin", label: "Berlin 🏛️" },
+        { value: "Munich", label: "Munich 💰" },
+        { value: "Hamburg", label: "Hamburg ⚓" },
+        { value: "Frankfurt", label: "Frankfurt 💹" },
+        { value: "Cologne", label: "Cologne 🏗️" },
+        { value: "Düsseldorf", label: "Düsseldorf 👔" },
+        { value: "Stuttgart", label: "Stuttgart 🚗" },
+        { value: "Nuremberg", label: "Nuremberg 🏭" },
+        // Strong economic centers (Second Tier)
+        { value: "Essen", label: "Essen 🏢" },
+        { value: "Dortmund", label: "Dortmund 📊" },
+        { value: "Bremen", label: "Bremen 🚢" },
+        { value: "Dresden", label: "Dresden 🖥️" },
+        { value: "Leipzig", label: "Leipzig 📈" },
+        { value: "Hanover", label: "Hanover 📋" },
+        { value: "Mannheim", label: "Mannheim 🏗️" },
+        // Regional economic centers (Third Tier)
+        { value: "Augsburg", label: "Augsburg 🔧" },
+        { value: "Bonn", label: "Bonn 🏛️" },
+        { value: "Münster", label: "Münster 📚" },
+        { value: "Karlsruhe", label: "Karlsruhe 🔬" },
+        { value: "Freiburg", label: "Freiburg 🌿" },
+        { value: "Wiesbaden", label: "Wiesbaden 🏢" },
+        { value: "Kiel", label: "Kiel ⚓" },
+        { value: "Magdeburg", label: "Magdeburg 🏗️" },
+    ],
+    Austria: [
+        { value: "Vienna", label: "Wien 🏛️" },
+        { value: "Graz", label: "Graz 🏗️" },
+        { value: "Linz", label: "Linz 🏭" },
+        { value: "Salzburg", label: "Salzburg 🎵" },
+        { value: "Innsbruck", label: "Innsbruck ⛰️" },
+        { value: "Klagenfurt", label: "Klagenfurt 🌊" },
+        { value: "Villach", label: "Villach 🏗️" },
+        { value: "Wels", label: "Wels 📊" },
+        { value: "St. Pölten", label: "Sankt Pölten 🏢" },
+        { value: "Dornbirn", label: "Dornbirn 🏭" },
+        { value: "Steyr", label: "Steyr 🏗️" },
+        { value: "Bregenz", label: "Bregenz 🌊" },
+    ],
+    Switzerland: [
+        { value: "Zurich", label: "Zürich 💰" },
+        { value: "Geneva", label: "Genève 🏛️" },
+        { value: "Bern", label: "Bern 🏢" },
+        { value: "Basel", label: "Basel 🧪" },
+        { value: "Lausanne", label: "Lausanne 🏗️" },
+        { value: "Lucerne", label: "Luzern ⛰️" },
+        { value: "St. Gallen", label: "St. Gallen 📚" },
+        { value: "Winterthur", label: "Winterthur 🏭" },
+        { value: "Biel", label: "Biel ⏰" },
+        { value: "Lugano", label: "Lugano ☀️" },
+        { value: "Thun", label: "Thun 🏗️" },
+        { value: "Köniz", label: "Köniz 🏢" },
+    ],
+    Liechtenstein: [
+        { value: "Vaduz", label: "Vaduz 🏛️" },
+        { value: "Schaan", label: "Schaan 🏗️" },
+        { value: "Triesen", label: "Triesen 🏭" },
+    ],
+    Luxembourg: [
+        { value: "Luxembourg City", label: "Luxembourg 🏛️" },
+        { value: "Esch-sur-Alzette", label: "Esch-sur-Alzette 🏗️" },
+        { value: "Differdange", label: "Differdange 🏭" },
+    ],
+};
 
 // Job categories covering the majority of Teilzeit / Minijob postings
 const JOB_CATEGORIES = [
@@ -69,28 +109,66 @@ const JOB_CATEGORIES = [
 ];
 
 export default function FilterForm({ onSave, initialFilters }: FilterFormProps) {
-    const [city, setCity] = useState(initialFilters.city);
-    const [minSalary, setMinSalary] = useState(initialFilters.minSalary);
-    const [maxSalary, setMaxSalary] = useState(initialFilters.maxSalary);
-    const [keywords, setKeywords] = useState(initialFilters.keywords);
+    const [country, setCountry] = useState(initialFilters.country ?? "Germany");
+    const [city, setCity] = useState(initialFilters.city ?? "");
+    const [language, setLanguage] = useState(initialFilters.language ?? "de");
+    const [minSalary, setMinSalary] = useState<number | "">(initialFilters.minSalary ?? "");
+    const [maxSalary, setMaxSalary] = useState<number | "">(initialFilters.maxSalary ?? "");
+    const [keywords, setKeywords] = useState(initialFilters.keywords ?? "");
     const [jobCategory, setJobCategory] = useState(initialFilters.jobCategory ?? "all");
-    const [employmentType, setEmploymentType] = useState(initialFilters.employmentType);
+    const [employmentType, setEmploymentType] = useState(initialFilters.employmentType ?? "all");
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         onSave({
+            country,
             city,
+            language,
             keywords,
             jobCategory,
             employmentType,
-            minSalary,
-            maxSalary,
+            minSalary: minSalary === "" ? 0 : Number(minSalary),
+            maxSalary: maxSalary === "" ? 0 : Number(maxSalary),
         });
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Country
+                    </label>
+                    <select
+                        value={country}
+                        onChange={(e) => {
+                            setCountry(e.target.value);
+                            setCity(""); // Reset city when country changes to avoid invalid state
+                        }}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        <option value="Germany">Germany</option>
+                        <option value="Austria">Austria</option>
+                        <option value="Switzerland">Switzerland</option>
+                        <option value="Liechtenstein">Liechtenstein</option>
+                        <option value="Luxembourg">Luxembourg</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Language
+                    </label>
+                    <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        <option value="de">German</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         City / Region
@@ -100,32 +178,13 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         onChange={(e) => setCity(e.target.value)}
                         className="w-full border rounded-lg p-2"
                     >
-                        <optgroup label="🏛️ Top Economic Hubs">
-                            {GERMAN_CITIES.slice(0, 8).map((c) => (
-                                <option key={c.value} value={c.value}>
-                                    {c.label}
-                                </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="📊 Strong Economic Centers">
-                            {GERMAN_CITIES.slice(8, 15).map((c) => (
-                                <option key={c.value} value={c.value}>
-                                    {c.label}
-                                </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="🏗️ Regional Centers">
-                            {GERMAN_CITIES.slice(15).map((c) => (
-                                <option key={c.value} value={c.value}>
-                                    {c.label}
-                                </option>
-                            ))}
-                        </optgroup>
-                        <option value="Both">🌍 All Cities</option>
+                        <option value="">🌍 Alle Städte</option>
+                        {CITIES_BY_COUNTRY[country as keyof typeof CITIES_BY_COUNTRY]?.map((c) => (
+                            <option key={c.value} value={c.value}>
+                                {c.label}
+                            </option>
+                        ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                        {GERMAN_CITIES.find((c) => c.value === city)?.label || "Select a city"}
-                    </p>
                 </div>
 
                 <div>
@@ -181,7 +240,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     <input
                         type="number"
                         value={minSalary}
-                        onChange={(e) => setMinSalary(Number(e.target.value))}
+                        onChange={(e) => setMinSalary(e.target.value === "" ? "" : Number(e.target.value))}
                         className="w-full border rounded-lg p-2"
                         placeholder="e.g., 150"
                     />
@@ -194,7 +253,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     <input
                         type="number"
                         value={maxSalary}
-                        onChange={(e) => setMaxSalary(Number(e.target.value))}
+                        onChange={(e) => setMaxSalary(e.target.value === "" ? "" : Number(e.target.value))}
                         className="w-full border rounded-lg p-2"
                         placeholder="e.g., 550"
                     />
