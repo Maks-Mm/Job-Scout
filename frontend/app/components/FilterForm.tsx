@@ -1,4 +1,4 @@
-//frontend/app/components/FilterForm.tsx
+// frontend/app/components/FilterForm.tsx
 
 "use client";
 
@@ -89,6 +89,42 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Esch-sur-Alzette", label: "Esch-sur-Alzette 🏗️" },
         { value: "Differdange", label: "Differdange 🏭" },
     ],
+    Belgien: [
+        // Hauptstadt & Region Brüssel
+        { value: "Brussels", label: "Brüssel 🏛️" },
+        { value: "Schaerbeek", label: "Schaerbeek 🏢" },
+        { value: "Anderlecht", label: "Anderlecht ⚽" },
+        { value: "Ixelles", label: "Ixelles/Elsene 🎓" },
+        
+        // Flandern (Niederländischsprachig)
+        { value: "Antwerp", label: "Antwerpen 🚢" },
+        { value: "Ghent", label: "Gent 🏗️" },
+        { value: "Bruges", label: "Brügge 🌊" },
+        { value: "Leuven", label: "Leuven 📚" },
+        { value: "Mechelen", label: "Mechelen 🏭" },
+        { value: "Aalst", label: "Aalst 📊" },
+        { value: "Hasselt", label: "Hasselt 🏢" },
+        { value: "Sint-Niklaas", label: "Sint-Niklaas 🏗️" },
+        { value: "Oostende", label: "Oostende ⚓" },
+        { value: "Genk", label: "Genk 🏭" },
+        { value: "Roeselare", label: "Roeselare 🏢" },
+        
+        // Wallonien (Französischsprachig)
+        { value: "Liège", label: "Lüttich 🏗️" },
+        { value: "Charleroi", label: "Charleroi 🏭" },
+        { value: "Namur", label: "Namur 🏛️" },
+        { value: "Mons", label: "Mons 🏢" },
+        { value: "Tournai", label: "Tournai 🏗️" },
+        { value: "Verviers", label: "Verviers 🏭" },
+        { value: "La Louvière", label: "La Louvière 🏢" },
+        { value: "Arlon", label: "Arlon 🏛️" },
+        { value: "Bastogne", label: "Bastogne 🎖️" },
+        { value: "Marche-en-Famenne", label: "Marche-en-Famenne 🏞️" },
+        
+        // Deutschsprachige Gemeinschaft
+        { value: "Eupen", label: "Eupen 🏛️" },
+        { value: "Sankt Vith", label: "Sankt Vith 🏞️" },
+    ],
 };
 
 // Job categories covering the majority of Teilzeit / Minijob postings
@@ -106,6 +142,16 @@ const JOB_CATEGORIES = [
     { value: "praktikum", label: "📚 Praktika" },
     { value: "mini", label: "💼 Mini- & Nebenjobs" },
     { value: "weitere", label: "📦 Sonstige Jobs" },
+];
+
+// Länder mit Flaggen
+const COUNTRIES_WITH_FLAGS = [
+    { value: "Germany", label: "🇩🇪 Germany" },
+    { value: "Austria", label: "🇦🇹 Austria" },
+    { value: "Switzerland", label: "🇨🇭 Switzerland" },
+    { value: "Liechtenstein", label: "🇱🇮 Liechtenstein" },
+    { value: "Luxembourg", label: "🇱🇺 Luxembourg" },
+    { value: "Belgien", label: "🇧🇪 Belgien" },
 ];
 
 export default function FilterForm({ onSave, initialFilters }: FilterFormProps) {
@@ -132,6 +178,46 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
         });
     };
 
+    // Länderspezifische Sprachoptionen
+    const getLanguageOptions = () => {
+        if (country === "Belgien") {
+            return (
+                <>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="nl">🇳🇱 Nederlands</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="en">🇬🇧 English</option>
+                </>
+            );
+        }
+        if (country === "Switzerland") {
+            return (
+                <>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="it">🇮🇹 Italiano</option>
+                    <option value="en">🇬🇧 English</option>
+                </>
+            );
+        }
+        if (country === "Luxembourg") {
+            return (
+                <>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="lb">🇱🇺 Lëtzebuergesch</option>
+                </>
+            );
+        }
+        return (
+            <>
+                <option value="de">🇩🇪 German</option>
+                <option value="en">🇬🇧 English</option>
+            </>
+        );
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -143,15 +229,25 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         value={country}
                         onChange={(e) => {
                             setCountry(e.target.value);
-                            setCity(""); // Reset city when country changes to avoid invalid state
+                            setCity(""); // Reset city when country changes
+                            // Sprache automatisch anpassen
+                            if (e.target.value === "Belgien") {
+                                setLanguage("de");
+                            } else if (e.target.value === "Switzerland") {
+                                setLanguage("de");
+                            } else if (e.target.value === "Luxembourg") {
+                                setLanguage("de");
+                            } else {
+                                setLanguage("de");
+                            }
                         }}
                         className="w-full border rounded-lg p-2"
                     >
-                        <option value="Germany">Germany</option>
-                        <option value="Austria">Austria</option>
-                        <option value="Switzerland">Switzerland</option>
-                        <option value="Liechtenstein">Liechtenstein</option>
-                        <option value="Luxembourg">Luxembourg</option>
+                        {COUNTRIES_WITH_FLAGS.map((c) => (
+                            <option key={c.value} value={c.value}>
+                                {c.label}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
@@ -164,8 +260,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         onChange={(e) => setLanguage(e.target.value)}
                         className="w-full border rounded-lg p-2"
                     >
-                        <option value="de">German</option>
-                        <option value="en">English</option>
+                        {getLanguageOptions()}
                     </select>
                 </div>
 
