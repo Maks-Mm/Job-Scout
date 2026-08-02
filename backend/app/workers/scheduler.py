@@ -1,7 +1,6 @@
-#backend/app/workers/scheduler.py
+# backend/app/workers/scheduler.py
 
 from apscheduler.schedulers.background import BackgroundScheduler
-
 from app.core.database import SessionLocal
 from app.models.job import Job
 from app.services.job_service import get_jobs
@@ -68,5 +67,24 @@ def update_jobs():
 
 
 def start_scheduler():
-    scheduler.add_job(update_jobs, "interval", hours=6)
+    # Für Tests: alle 30 Minuten
+    scheduler.add_job(
+        update_jobs, 
+        "interval", 
+        minutes=30,
+        id="update_jobs",
+        replace_existing=True
+    )
     scheduler.start()
+    print("[Scheduler] running every 30 minutes (test mode)")
+
+    # Später für Produktion auf 6 Stunden umstellen:
+    # scheduler.add_job(
+    #     update_jobs, 
+    #     "interval", 
+    #     hours=6,
+    #     id="update_jobs",
+    #     replace_existing=True
+    # )
+    # scheduler.start()
+    # print("[Scheduler] running every 6 hours")

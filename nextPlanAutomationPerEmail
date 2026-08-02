@@ -1,0 +1,312 @@
+Für die Automatisierung brauchst du vier Komponenten:
+
+1. **Scheduler** – startet regelmäßig eine Jobsuche.
+2. **Saved Search / User Preferences Storage** – speichert Suchfilter pro Nutzer.
+3. **Job Deduplication** – erkennt bereits gemeldete Jobs.
+4. **Email Notification Service** – verschickt neue Treffer.
+
+Dein Projekt hat bereits:
+
+```python
+backend/app/workers/scheduler.py
+```
+
+und in `main.py`:
+
+```python
+from app.workers.scheduler import start_scheduler
+```
+
+Das ist die richtige Stelle.
+
+Die Architektur sollte so aussehen:
+
+```
+User
+ |
+ | speichert Filter
+ ↓
+Database
+ |
+ | alle X Stunden
+ ↓
+Scheduler (APScheduler)
+ |
+ ↓
+Collectors
+ |
+ ↓
+filter_jobs()
+ |
+ ↓
+Compare with sent_jobs
+ |
+ ↓
+Email Service
+ |
+ ↓
+User bekommt:
+"Neue Jobs gefunden"
+```
+
+---
+
+## 1. Benötigte Libraries
+
+Installieren:
+
+```powershell
+pip install apscheduler sqlalchemy fastapi-mail python-dotenv
+```
+
+---
+
+## 2. Neue Struktur
+
+Erweitere:
+
+```
+backend/app/
+
+├── notifications/
+│   ├── __init__.py
+│   └── email_service.py
+│
+├── workers/
+│   ├── scheduler.py
+│   └── job_notifier.py
+│
+├── models/
+│   └── saved_search.py
+│
+└── database.py
+```
+
+---
+
+## 3. Scheduler
+
+`backend/app/workers/scheduler.py`
+
+ersetzen:
+
+```python
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.workers.job_notifier import check_new_jobs
+
+
+scheduler = BackgroundScheduler()
+
+
+def start_scheduler():
+
+    scheduler.add_job(
+        check_new_jobs,
+        trigger="interval",
+        hours=6,
+        id="job_email_check",
+        replace_existing=True
+    )
+
+    scheduler.start()
+
+    print("[Scheduler] running every 6 hours")
+```
+
+Intervall:
+
+```
+minutes=30
+```
+
+für Tests.
+
+Später:
+
+```
+hours=6
+```
+
+---
+
+## 4. Job Notifier
+
+`backend/app/workers/job_notifier.py`
+
+```python
+from app.collectors.collector_registry import get_collectors
+from app.filters.job_filter import filter_jobs
+from app.notifications.email_service import send_job_email
+
+
+def check_new_jobs():
+
+    print("[Notifier] checking jobs")
+
+
+    users = get_users_with_alerts()
+
+
+    for user in users:
+
+        collectors = get_collectors(
+            user.country
+        )
+
+
+        jobs=[]
+
+        for collector in collectors:
+
+            try:
+                jobs.extend(
+                    collector.fetch_jobs(user)
+                )
+
+            except Exception as e:
+                print(
+                    collector.source,
+                    e
+                )
+
+
+        filtered = filter_jobs(
+            jobs,
+            user
+        )
+
+
+        new_jobs = remove_already_sent(
+            user,
+            filtered
+        )
+
+
+        if new_jobs:
+
+            send_job_email(
+                user.email,
+                new_jobs
+            )
+
+
+            save_sent_jobs(
+                user,
+                new_jobs
+            )
+
+
+
+def get_users_with_alerts():
+    """
+    später Datenbank
+    """
+    return []
+
+
+
+def remove_already_sent(user,jobs):
+    return jobs
+
+
+def save_sent_jobs(user,jobs):
+    pass
+```
+
+---
+
+## 5. Email Service
+
+`backend/app/notifications/email_service.py`
+
+```python
+import smtplib
+from email.mime.text import MIMEText
+
+
+SMTP_SERVER="smtp.gmail.com"
+SMTP_PORT=587
+
+
+EMAIL="your_email@gmail.com"
+PASSWORD="your_app_password"
+
+
+
+def send_job_email(receiver,jobs):
+
+    body="Neue Jobs gefunden:\n\n"
+
+
+    for job in jobs[:20]:
+
+        body += (
+            f"{job['title']}\n"
+            f"{job['company']}\n"
+            f"{job['city']}\n"
+            f"{job['url']}\n\n"
+        )
+
+
+    msg=MIMEText(body)
+
+    msg["Subject"]="Neue Job Scout Ergebnisse"
+    msg["From"]=EMAIL
+    msg["To"]=receiver
+
+
+    server=smtplib.SMTP(
+        SMTP_SERVER,
+        SMTP_PORT
+    )
+
+    server.starttls()
+
+    server.login(
+        EMAIL,
+        PASSWORD
+    )
+
+    server.send_message(msg)
+
+    server.quit()
+```
+
+---
+
+## 6. Aktivieren
+
+In `.env`:
+
+```
+START_SCHEDULER=1
+```
+
+Dann:
+
+```powershell
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Erwartete Ausgabe:
+
+```
+Scheduler started successfully
+[Scheduler] running every 6 hours
+```
+
+---
+
+## 7. Später notwendige Erweiterungen
+
+Für eine produktive Version:
+
+- Benutzerkonto + Login
+- Tabelle `saved_searches`
+- Tabelle `sent_jobs`
+- SMTP über SendGrid/Mailgun/AWS SES statt Gmail
+- HTML Email Template
+- tägliche Zusammenfassung
+- Push Notifications
+
+Die aktuelle Codebasis ist bereits geeignet. Der nächste konkrete Schritt ist eine Datenbank für gespeicherte Suchprofile. Ohne gespeicherte Filter weiß der Scheduler nicht, wem welche Jobs geschickt werden sollen.
