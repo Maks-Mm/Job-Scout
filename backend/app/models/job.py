@@ -1,89 +1,24 @@
 #backend/app/models/job.py
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
-    Text,
-    DateTime
-)
-
-from sqlalchemy.sql import func
-
+from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy.orm import relationship
 from app.core.database import Base
+from datetime import datetime
 
 
 class Job(Base):
-
     __tablename__ = "jobs"
 
-
-    id = Column(
-        Integer,
-        primary_key=True
-    )
-
-
-    title = Column(
-        String(255),
-        nullable=False
-    )
-
-
-    company = Column(
-        String(255)
-    )
-
-
-    city = Column(
-        String(100)
-    )
-
-
-    country = Column(
-        String(100),
-        default="Germany"
-    )
-
-
-    salary_min = Column(
-        Float
-    )
-
-
-    salary_max = Column(
-        Float
-    )
-
-
-    currency = Column(
-        String(10),
-        default="EUR"
-    )
-
-
-    category = Column(
-        String(100)
-    )
-
-
-    description = Column(
-        Text
-    )
-
-
-    url = Column(
-        String(500),
-        unique=True
-    )
-
-
-    source = Column(
-        String(50)
-    )
-
-
-    created_at = Column(
-        DateTime,
-        server_default=func.now()
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    company = Column(String)
+    city = Column(String)
+    salary_min = Column(Float)
+    salary_max = Column(Float)
+    currency = Column(String, default="EUR")
+    url = Column(String, unique=True, nullable=False)
+    source = Column(String)
+    date = Column(String)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    user_jobs = relationship("UserJob", back_populates="job")

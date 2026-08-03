@@ -1,10 +1,11 @@
-# backend/app/workers/scheduler.py
+#backend/app/workers/scheduler.py
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.database import SessionLocal
 from app.models.job import Job
 from app.services.job_service import get_jobs
 from app.services.filtering import JobFilter
+from app.workers.job_notifier import check_new_jobs  # Add this import
 
 scheduler = BackgroundScheduler()
 
@@ -58,6 +59,9 @@ def update_jobs():
 
         db.commit()
         print(f"Scheduler run complete: {total_new} new, {total_updated} updated")
+        
+        # After updating jobs, check for new jobs to notify users
+        check_new_jobs()  # Add this line
 
     except Exception as e:
         db.rollback()
@@ -71,7 +75,7 @@ def start_scheduler():
     scheduler.add_job(
         update_jobs, 
         "interval", 
-        minutes=30,
+        hours=6,
         id="update_jobs",
         replace_existing=True
     )
