@@ -1,3 +1,6 @@
+// frontend/app/components/EmptyState.tsx
+import React from 'react';
+
 export default function EmptyState() {
   return (
     <div className="text-center py-12 bg-gray-50 rounded-lg">

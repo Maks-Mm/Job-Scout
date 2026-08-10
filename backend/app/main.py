@@ -4,10 +4,14 @@
 from fastapi import FastAPI
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes.jobs import router
+from app.api.routes.jobs import router as jobs_router
+from app.api.routes.users import router as users_router
 from app.workers.scheduler import start_scheduler
+from app.core.migrations import ensure_user_schema
 
 app = FastAPI()
+
+ensure_user_schema()
 
 # CORS middleware
 app.add_middleware(
@@ -21,7 +25,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
+app.include_router(jobs_router)
+app.include_router(users_router)
 
 @app.on_event("startup")
 def startup():  

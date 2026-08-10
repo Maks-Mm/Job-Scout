@@ -17,10 +17,11 @@ SMTP_PORT = 587
 
 EMAIL = "maxfilawwwrest@gmail.com"
 PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 
-
-def send_job_email(receiver, jobs):
+def send_job_email(receiver, jobs, unsubscribe_token: str | None = None):
     """
     Send HTML email with job cards to the receiver
     """
@@ -88,6 +89,16 @@ def send_job_email(receiver, jobs):
         </div>
         """
 
+    unsubscribe_section = ""
+    if unsubscribe_token:
+        unsubscribe_link = f"{BACKEND_URL}/api/users/unsubscribe?token={unsubscribe_token}"
+        unsubscribe_section = f"""
+            <p style="font-family:Arial, sans-serif; color:#94a3b8; font-size:12px; margin-top:12px;">
+                Wenn du keine E-Mail-Benachrichtigungen mehr erhalten möchtest, kannst du dich hier abmelden:
+                <a href="{unsubscribe_link}" style="color:#2563eb; text-decoration:none;">Abmelden</a>
+            </p>
+        """
+
     html = f"""
     <html>
     <head>
@@ -124,11 +135,11 @@ def send_job_email(receiver, jobs):
             ">
                 Automatische Nachricht von Job Scout • Du erhältst diese E-Mail, weil du Benachrichtigungen aktiviert hast.
             </p>
+            {unsubscribe_section}
         </div>
     </body>
     </html>
     """
-
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Neue Job Scout Ergebnisse ({len(jobs)} Stellen)"
     msg["From"] = EMAIL
@@ -165,4 +176,49 @@ def send_job_email(receiver, jobs):
         
     except Exception as e:
         print(f"[EmailService] ❌ Unexpected error: {e}")
+        return False
+
+
+def send_verification_email(receiver, token):
+    """Send a verification email with a unique token."""
+    verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
+
+    html = f"""
+    <html>
+    <head>
+        <meta charset=\"UTF-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+    </head>
+    <body style=\"background:#f3f4f6;padding:20px;font-family:Arial,sans-serif;margin:0;\">
+        <div style=\"max-width:600px;margin:0 auto;background:#ffffff;padding:24px;border-radius:16px;box-shadow:0 10px 30px rgba(15,23,42,0.08);\">
+            <h1 style=\"color:#1d4ed8;font-size:24px;margin-bottom:16px;\">Bitte bestätige deine E-Mail-Adresse</h1>
+            <p style=\"color:#334155;font-size:16px;line-height:1.6;\">
+                Vielen Dank, dass du Job Scout E-Mail-Benachrichtigungen aktivieren möchtest.
+                Bitte bestätige deine E-Mail-Adresse, damit wir dir nur an dich adressierte Nachrichten senden.
+            </p>
+            <a href=\"{verify_link}\" style=\"display:inline-block;margin-top:20px;padding:12px 22px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:12px;font-weight:600;\">
+                E-Mail bestätigen
+            </a>
+            <p style=\"color:#94a3b8;font-size:12px;margin-top:24px;\">Wenn du diese E-Mail nicht angefordert hast, kannst du sie ignorieren.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Bitte bestätige deine E-Mail-Adresse bei Job Scout"
+    msg["From"] = EMAIL
+    msg["To"] = receiver
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        print("[EmailService] Sending verification email to", receiver)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL, PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[EmailService] ❌ Verification email failed: {e}")
         return False

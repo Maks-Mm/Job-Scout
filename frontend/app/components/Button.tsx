@@ -1,13 +1,10 @@
-//frontend/app/components/Button.tsx
+// frontend/app/components/Button.tsx
+import React from 'react';
 
-import React from 'react'
-
-function Button() {
+export default function Button() {
   return (
     <div>
       Button 
     </div>
-  )
+  );
 }
-
-export default Button

@@ -2,8 +2,9 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ChangeEvent, type ReactElement } from "react";
 
+// ===== INTERFACES =====
 interface Filter {
     country: string;
     city: string;
@@ -21,10 +22,9 @@ interface FilterFormProps {
     initialFilters: Filter;
 }
 
-// Top cities by country
+// ===== DATA =====
 const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>> = {
     Germany: [
-        // Major economic hubs (Top Tier)
         { value: "Berlin", label: "Berlin 🏛️" },
         { value: "Munich", label: "Munich 💰" },
         { value: "Hamburg", label: "Hamburg ⚓" },
@@ -33,7 +33,6 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Düsseldorf", label: "Düsseldorf 👔" },
         { value: "Stuttgart", label: "Stuttgart 🚗" },
         { value: "Nuremberg", label: "Nuremberg 🏭" },
-        // Strong economic centers (Second Tier)
         { value: "Essen", label: "Essen 🏢" },
         { value: "Dortmund", label: "Dortmund 📊" },
         { value: "Bremen", label: "Bremen 🚢" },
@@ -41,7 +40,6 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Leipzig", label: "Leipzig 📈" },
         { value: "Hanover", label: "Hanover 📋" },
         { value: "Mannheim", label: "Mannheim 🏗️" },
-        // Regional economic centers (Third Tier)
         { value: "Augsburg", label: "Augsburg 🔧" },
         { value: "Bonn", label: "Bonn 🏛️" },
         { value: "Münster", label: "Münster 📚" },
@@ -90,13 +88,10 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Differdange", label: "Differdange 🏭" },
     ],
     Belgien: [
-        // Hauptstadt & Region Brüssel
         { value: "Brussels", label: "Brüssel 🏛️" },
         { value: "Schaerbeek", label: "Schaerbeek 🏢" },
         { value: "Anderlecht", label: "Anderlecht ⚽" },
         { value: "Ixelles", label: "Ixelles/Elsene 🎓" },
-        
-        // Flandern (Niederländischsprachig)
         { value: "Antwerp", label: "Antwerpen 🚢" },
         { value: "Ghent", label: "Gent 🏗️" },
         { value: "Bruges", label: "Brügge 🌊" },
@@ -108,8 +103,6 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Oostende", label: "Oostende ⚓" },
         { value: "Genk", label: "Genk 🏭" },
         { value: "Roeselare", label: "Roeselare 🏢" },
-        
-        // Wallonien (Französischsprachig)
         { value: "Liège", label: "Lüttich 🏗️" },
         { value: "Charleroi", label: "Charleroi 🏭" },
         { value: "Namur", label: "Namur 🏛️" },
@@ -120,14 +113,11 @@ const CITIES_BY_COUNTRY: Record<string, Array<{ value: string; label: string }>>
         { value: "Arlon", label: "Arlon 🏛️" },
         { value: "Bastogne", label: "Bastogne 🎖️" },
         { value: "Marche-en-Famenne", label: "Marche-en-Famenne 🏞️" },
-        
-        // Deutschsprachige Gemeinschaft
         { value: "Eupen", label: "Eupen 🏛️" },
         { value: "Sankt Vith", label: "Sankt Vith 🏞️" },
     ],
 };
 
-// Job categories covering the majority of Teilzeit / Minijob postings
 const JOB_CATEGORIES = [
     { value: "all", label: "Alle Kategorien" },
     { value: "buero", label: "🏢 Büro & Verwaltung" },
@@ -144,7 +134,6 @@ const JOB_CATEGORIES = [
     { value: "weitere", label: "📦 Sonstige Jobs" },
 ];
 
-// Länder mit Flaggen
 const COUNTRIES_WITH_FLAGS = [
     { value: "Germany", label: "🇩🇪 Germany" },
     { value: "Austria", label: "🇦🇹 Austria" },
@@ -154,17 +143,18 @@ const COUNTRIES_WITH_FLAGS = [
     { value: "Belgien", label: "🇧🇪 Belgien" },
 ];
 
+// ===== COMPONENT =====
 export default function FilterForm({ onSave, initialFilters }: FilterFormProps) {
-    const [country, setCountry] = useState(initialFilters.country ?? "Germany");
-    const [city, setCity] = useState(initialFilters.city ?? "");
-    const [language, setLanguage] = useState(initialFilters.language ?? "de");
+    const [country, setCountry] = useState<string>(initialFilters.country ?? "Germany");
+    const [city, setCity] = useState<string>(initialFilters.city ?? "");
+    const [language, setLanguage] = useState<string>(initialFilters.language ?? "de");
     const [minSalary, setMinSalary] = useState<number | "">(initialFilters.minSalary ?? "");
     const [maxSalary, setMaxSalary] = useState<number | "">(initialFilters.maxSalary ?? "");
-    const [keywords, setKeywords] = useState(initialFilters.keywords ?? "");
-    const [jobCategory, setJobCategory] = useState(initialFilters.jobCategory ?? "all");
-    const [employmentType, setEmploymentType] = useState(initialFilters.employmentType ?? "all");
+    const [keywords, setKeywords] = useState<string>(initialFilters.keywords ?? "");
+    const [jobCategory, setJobCategory] = useState<string>(initialFilters.jobCategory ?? "all");
+    const [employmentType, setEmploymentType] = useState<string>(initialFilters.employmentType ?? "all");
 
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
         onSave({
             country,
@@ -178,8 +168,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
         });
     };
 
-    // Länderspezifische Sprachoptionen
-    const getLanguageOptions = () => {
+    const getLanguageOptions = (): ReactElement => {
         if (country === "Belgien") {
             return (
                 <>
@@ -218,6 +207,49 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
         );
     };
 
+    const handleCountryChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+        const newCountry = e.target.value;
+        setCountry(newCountry);
+        setCity("");
+        
+        // Auto-set language based on country
+        if (newCountry === "Belgien" || newCountry === "Switzerland" || newCountry === "Luxembourg") {
+            setLanguage("de");
+        } else {
+            setLanguage("de");
+        }
+    };
+
+    const handleCityChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+        setCity(e.target.value);
+    };
+
+    const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+        setLanguage(e.target.value);
+    };
+
+    const handleKeywordsChange = (e: ChangeEvent<HTMLInputElement>): void => {
+        setKeywords(e.target.value);
+    };
+
+    const handleJobCategoryChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+        setJobCategory(e.target.value);
+    };
+
+    const handleEmploymentTypeChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+        setEmploymentType(e.target.value);
+    };
+
+    const handleMinSalaryChange = (e: ChangeEvent<HTMLInputElement>): void => {
+        const value = e.target.value;
+        setMinSalary(value === "" ? "" : Number(value));
+    };
+
+    const handleMaxSalaryChange = (e: ChangeEvent<HTMLInputElement>): void => {
+        const value = e.target.value;
+        setMaxSalary(value === "" ? "" : Number(value));
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,20 +259,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     </label>
                     <select
                         value={country}
-                        onChange={(e) => {
-                            setCountry(e.target.value);
-                            setCity(""); // Reset city when country changes
-                            // Sprache automatisch anpassen
-                            if (e.target.value === "Belgien") {
-                                setLanguage("de");
-                            } else if (e.target.value === "Switzerland") {
-                                setLanguage("de");
-                            } else if (e.target.value === "Luxembourg") {
-                                setLanguage("de");
-                            } else {
-                                setLanguage("de");
-                            }
-                        }}
+                        onChange={handleCountryChange}
                         className="w-full border rounded-lg p-2"
                     >
                         {COUNTRIES_WITH_FLAGS.map((c) => (
@@ -257,7 +276,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     </label>
                     <select
                         value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
+                        onChange={handleLanguageChange}
                         className="w-full border rounded-lg p-2"
                     >
                         {getLanguageOptions()}
@@ -270,7 +289,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     </label>
                     <select
                         value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        onChange={handleCityChange}
                         className="w-full border rounded-lg p-2"
                     >
                         <option value="">🌍 Alle Städte</option>
@@ -290,7 +309,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         type="text"
                         placeholder="e.g., Frontend, Admin, Sales"
                         value={keywords}
-                        onChange={(e) => setKeywords(e.target.value)}
+                        onChange={handleKeywordsChange}
                         className="w-full border rounded-lg p-2"
                     />
                 </div>
@@ -301,7 +320,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     </label>
                     <select
                         value={jobCategory}
-                        onChange={(e) => setJobCategory(e.target.value)}
+                        onChange={handleJobCategoryChange}
                         className="w-full border rounded-lg p-2"
                     >
                         {JOB_CATEGORIES.map((category) => (
@@ -318,7 +337,7 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     </label>
                     <select
                         value={employmentType}
-                        onChange={(e) => setEmploymentType(e.target.value)}
+                        onChange={handleEmploymentTypeChange}
                         className="w-full border rounded-lg p-2"
                     >
                         <option value="all">Alle</option>
@@ -335,9 +354,10 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     <input
                         type="number"
                         value={minSalary}
-                        onChange={(e) => setMinSalary(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={handleMinSalaryChange}
                         className="w-full border rounded-lg p-2"
                         placeholder="e.g., 150"
+                        min="0"
                     />
                 </div>
 
@@ -348,9 +368,10 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     <input
                         type="number"
                         value={maxSalary}
-                        onChange={(e) => setMaxSalary(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={handleMaxSalaryChange}
                         className="w-full border rounded-lg p-2"
                         placeholder="e.g., 550"
+                        min="0"
                     />
                 </div>
             </div>

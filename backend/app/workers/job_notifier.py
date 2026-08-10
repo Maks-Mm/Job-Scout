@@ -46,7 +46,7 @@ def check_new_jobs():
 
         if new_jobs:
             print(f"[Notifier] Sending {len(new_jobs)} new jobs to {user.email}")
-            send_job_email(user.email, new_jobs)
+            send_job_email(user.email, new_jobs, unsubscribe_token=user.unsubscribe_token)
 
             # Gesendete Jobs speichern
             save_sent_jobs(user, new_jobs)
@@ -54,12 +54,14 @@ def check_new_jobs():
 
 def get_users_with_alerts():
     """
-    Alle Benutzer mit aktivierten Benachrichtigungen abrufen
+    Alle Benutzer mit aktivierten Benachrichtigungen und bestätigter E-Mail abrufen
     """
     db = SessionLocal()
     try:
         users = db.query(User).filter(
-            User.alerts_enabled == True
+            User.alerts_enabled == True,
+            User.consent_given == True,
+            User.verified_email == True,
         ).all()
         return users
     except Exception as e:

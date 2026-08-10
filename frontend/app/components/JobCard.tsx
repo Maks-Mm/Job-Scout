@@ -1,6 +1,8 @@
 // frontend/app/components/JobCard.tsx
+import type { FC } from "react";
+
 interface Job {
-  id: number | string;  // Changed from number to number | string
+  id: number | string;
   title: string;
   company: string;
   city: string;
@@ -10,7 +12,11 @@ interface Job {
   source: string;
 }
 
-export default function JobCard({ job }: { job: Job }) {
+interface JobCardProps {
+  job: Job;
+}
+
+const JobCard: FC<JobCardProps> = ({ job }) => {
   return (
     <div className="bg-white border rounded-lg p-4 mb-3 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
@@ -37,4 +43,6 @@ export default function JobCard({ job }: { job: Job }) {
       </div>
     </div>
   );
-}
+};
+
+export default JobCard;

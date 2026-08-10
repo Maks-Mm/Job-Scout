@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import Navbar from "./components/Navbar";
 import FilterForm from "./components/FilterForm";
 import JobCard from "./components/JobCard";
@@ -50,6 +50,10 @@ export default function Home() {
   });
   const [telegramId, setTelegramId] = useState("");
   const [showTelegramSetup, setShowTelegramSetup] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailConsent, setEmailConsent] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   const fetchJobs = async (overrideFilters?: Filter) => {
     const activeFilters = overrideFilters ?? filters;
@@ -144,6 +148,57 @@ export default function Home() {
     setShowTelegramSetup(false);
   };
 
+  const saveEmailAlerts = async () => {
+    if (!emailConsent) {
+      setEmailStatus("Bitte stimme der E-Mail-Benachrichtigung zu.");
+      return;
+    }
+
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setEmailStatus("Bitte gib eine gültige E-Mail-Adresse ein.");
+      return;
+    }
+
+    setEmailSaving(true);
+    setEmailStatus(null);
+
+    try {
+      const response = await fetch("/api/users/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          alerts_enabled: true,
+          keywords: filters.keywords,
+          city: filters.city,
+          country: filters.country,
+          interval: "6h",
+          consent: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setEmailStatus(
+          data?.detail || data?.error || "Beim Speichern der E-Mail-Benachrichtigungen ist ein Fehler aufgetreten."
+        );
+        return;
+      }
+
+      setEmailStatus(
+        data.verification_sent
+          ? "Eine Verifizierungs-E-Mail wurde an dich gesendet. Bitte bestätige deine E-Mail-Adresse."
+          : "E-Mail-Benachrichtigungen wurden gespeichert."
+      );
+    } catch (error) {
+      console.error("Error saving email alerts:", error);
+      setEmailStatus("Beim Speichern der E-Mail-Benachrichtigungen ist ein Fehler aufgetreten.");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchJobs();
 
@@ -189,7 +244,7 @@ export default function Home() {
                 type="text"
                 placeholder="Enter your Telegram ID"
                 value={telegramId}
-                onChange={(e) => setTelegramId(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setTelegramId(e.target.value)}
                 className="w-full border rounded-lg p-2 mb-4"
               />
 
@@ -213,6 +268,47 @@ export default function Home() {
         )}
 
         <div className="bg-white rounded-lg shadow mb-8 p-6">
+          <h2 className="text-lg font-semibold mb-4">E-Mail-Benachrichtigungen</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Erhalte neue Jobangebote per E-Mail. Gib deine E-Mail-Adresse ein und bestätige sie anschließend über den Link, den wir dir zusenden.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <input
+              type="email"
+              placeholder="Deine E-Mail-Adresse"
+              value={email}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+              className="w-full border rounded-lg p-2"
+            />
+
+            <label className="flex items-start gap-3 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={emailConsent}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailConsent(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                Ich möchte E-Mail-Benachrichtigungen erhalten und stimme der Verarbeitung meiner E-Mail-Adresse zu.
+              </span>
+            </label>
+          </div>
+
+          {emailStatus && (
+            <p className="mt-3 text-sm text-gray-800">{emailStatus}</p>
+          )}
+
+          <button
+            onClick={saveEmailAlerts}
+            disabled={emailSaving || !emailConsent || !email}
+            className="mt-4 inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          >
+            {emailSaving ? "Speichern…" : "E-Mail-Benachrichtigung aktivieren"}
+          </button>
+        </div>
+
+        <div className="bg-white rounded-lg shadow mb-8 p-6">
           <h2 className="text-lg font-semibold mb-4">Search Filters</h2>
           <FilterForm onSave={saveFilter} initialFilters={filters} />
         </div>
@@ -232,10 +328,12 @@ export default function Home() {
 
           {!loading &&
             jobs.map((job, index) => (
-              <JobCard
+              <div
                 key={job.id ?? `${job.source ?? "job"}-${index}`}
-                job={job}
-              />
+                className="contents"
+              >
+                <JobCard job={job} />
+              </div>
             ))}
         </div>
       </main>

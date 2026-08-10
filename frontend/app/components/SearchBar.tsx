@@ -1,6 +1,8 @@
+//frontend/app/components/SearchBar.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 
 export default function SearchBar({ onSearch }: { onSearch: (term: string) => void }) {
   const [term, setTerm] = useState("");
@@ -15,8 +17,8 @@ export default function SearchBar({ onSearch }: { onSearch: (term: string) => vo
         type="text"
         placeholder="Search jobs by title or company..."
         value={term}
-        onChange={(e) => setTerm(e.target.value)}
-        onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => setTerm(e.target.value)}
+        onKeyPress={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleSearch()}
         className="flex-1 border rounded-lg p-2"
       />
       <button
