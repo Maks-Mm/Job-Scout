@@ -83,7 +83,7 @@ def save_alert_preferences(request: Request, preferences: AlertPreferences):
 
         if not user.unsubscribe_token:
            # user.unsubscribe_token = str(uuid.uuid4()).hex
-           user.unsubscribe_token = uuid.uuid4().hex,
+           user.unsubscribe_token = uuid.uuid4().hex
 
         user.alerts_enabled = preferences.alerts_enabled
         user.keywords = preferences.keywords or ""
