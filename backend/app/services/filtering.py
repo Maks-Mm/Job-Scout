@@ -82,12 +82,29 @@ CATEGORY_KEYWORDS = {
     ],
     "mini": [
         "minijob", "nebenjob", "aushilfe",
-        "520", "geringfügig", "teilzeit"
+        "520", "geringfügig"
     ],
     "weitere": [
         "sonstige", "divers", "allgemein"
     ],
 }
+
+
+def normalize_employment_type(value: str) -> str:
+    text = str(value or "").lower().strip()
+    if not text:
+        return ""
+
+    if re.search(r"\b(minijob|nebenjob|aushilfe|520|geringfügig|mini)\b", text):
+        return "mini"
+
+    if re.search(r"\b(teilzeit|part[_ ]?time|tz)\b", text):
+        return "parttime"
+
+    if re.search(r"\b(vollzeit|full[_ ]?time|vz)\b", text):
+        return "fulltime"
+
+    return text
 
 
 # Country normalization mapping
@@ -199,6 +216,22 @@ def filter_jobs(jobs: list, filters: JobFilter):
             if not contains_keyword(searchable_text, category_words):
                 reject("category", job)
                 continue
+
+        # Employment type
+        if filters.employment_type and filters.employment_type != "all":
+            wanted_type = normalize_employment_type(filters.employment_type)
+            raw_value = job.get("employment_type")
+
+            # Collector hat keinen Wert geliefert -> er hat (falls er das
+            # unterstützt) bereits selbst serverseitig oder per Titel-Keyword
+            # vorgefiltert (siehe StepStone/Arbeitsagentur/Kleinanzeigen/...).
+            # Wir lehnen so einen Job nicht zusätzlich ab, sonst verlieren wir
+            # alle Treffer dieser Collectors komplett.
+            if raw_value:
+                job_employment_type = normalize_employment_type(raw_value)
+                if job_employment_type != wanted_type:
+                    reject("employment_type", job)
+                    continue
 
         # Source
         if filters.source:

@@ -40,3 +40,42 @@ def test_country_and_language_filters_jobs():
     result = filter_jobs(jobs, filters)
 
     assert [job["title"] for job in result] == ["Job A"]
+
+
+def test_employment_type_filter_applies_to_job_employment_type():
+    filters = JobFilter(city="Munich", employment_type="parttime")
+    jobs = [
+        {"title": "Job A", "employment_type": "parttime"},
+        {"title": "Job B", "employment_type": "fulltime"},
+        {"title": "Job C", "employment_type": "mini"},
+        {"title": "Job D", "employment_type": ""},
+    ]
+
+    result = filter_jobs(jobs, filters)
+
+    assert [job["title"] for job in result] == ["Job A", "Job D"]
+
+
+def test_employment_type_filter_does_not_reject_jobs_with_missing_field():
+    filters = JobFilter(city="Munich", employment_type="parttime")
+    jobs = [
+        {"title": "Job A"},
+        {"title": "Job B", "employment_type": ""},
+        {"title": "Job C", "employment_type": "fulltime"},
+    ]
+
+    result = filter_jobs(jobs, filters)
+
+    assert [job["title"] for job in result] == ["Job A", "Job B"]
+
+
+def test_mini_category_does_not_match_teilzeit_keyword_anymore():
+    filters = JobFilter(city="Munich", job_category="mini")
+    jobs = [
+        {"title": "Teilzeit-Kassierer", "category": "Verkauf"},
+        {"title": "Minijob Aushilfe", "category": "Gastronomie"},
+    ]
+
+    result = filter_jobs(jobs, filters)
+
+    assert [job["title"] for job in result] == ["Minijob Aushilfe"]
