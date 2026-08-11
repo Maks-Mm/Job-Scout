@@ -39,14 +39,14 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filter>({
-    country: "Germany",
-    city: "Munich",
+    country: "",
+    city: "",
     language: "de",
     keywords: "",
     jobCategory: "all",
     employmentType: "all",
-    minSalary: 150,
-    maxSalary: 10000,
+    minSalary: 0,
+    maxSalary: 0,
   });
   const [telegramId, setTelegramId] = useState("");
   const [showTelegramSetup, setShowTelegramSetup] = useState(false);
@@ -200,8 +200,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchJobs();
-
+   // fetchJobs();
     const savedId = localStorage.getItem("telegramId");
     if (savedId) setTelegramId(savedId);
   }, []);

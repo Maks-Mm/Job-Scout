@@ -145,7 +145,7 @@ const COUNTRIES_WITH_FLAGS = [
 
 // ===== COMPONENT =====
 export default function FilterForm({ onSave, initialFilters }: FilterFormProps) {
-    const [country, setCountry] = useState<string>(initialFilters.country ?? "Germany");
+    const [country, setCountry] = useState<string>(initialFilters.country ?? "");
     const [city, setCity] = useState<string>(initialFilters.city ?? "");
     const [language, setLanguage] = useState<string>(initialFilters.language ?? "de");
     const [minSalary, setMinSalary] = useState<number | "">(initialFilters.minSalary ?? "");
@@ -153,9 +153,16 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
     const [keywords, setKeywords] = useState<string>(initialFilters.keywords ?? "");
     const [jobCategory, setJobCategory] = useState<string>(initialFilters.jobCategory ?? "all");
     const [employmentType, setEmploymentType] = useState<string>(initialFilters.employmentType ?? "all");
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
+        if (!country) {
+            setError("Bitte wähle zuerst ein Land aus.");
+            return;
+        }
+
+        setError(null);
         onSave({
             country,
             city,
@@ -211,7 +218,8 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
         const newCountry = e.target.value;
         setCountry(newCountry);
         setCity("");
-        
+        setError(null);
+
         // Auto-set language based on country
         if (newCountry === "Belgien" || newCountry === "Switzerland" || newCountry === "Luxembourg") {
             setLanguage("de");
@@ -262,6 +270,9 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                         onChange={handleCountryChange}
                         className="w-full border rounded-lg p-2"
                     >
+                        <option value="" disabled>
+                            🌍 Land wählen
+                        </option>
                         {COUNTRIES_WITH_FLAGS.map((c) => (
                             <option key={c.value} value={c.value}>
                                 {c.label}
@@ -375,6 +386,12 @@ export default function FilterForm({ onSave, initialFilters }: FilterFormProps) 
                     />
                 </div>
             </div>
+
+            {error && (
+                <p className="text-sm text-red-600 -mt-2">
+                    {error}
+                </p>
+            )}
 
             <button
                 type="submit"
