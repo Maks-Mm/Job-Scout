@@ -23,15 +23,9 @@ class AdzunaCollector(JobCollector):
             "switzerland": "ch",
         }
 
-        country_code = country_codes.get(
-            filter.country.lower(),
-            "de"
-        )
+        country_code = country_codes.get(filter.country.lower(), "de")
 
-        url = (
-            f"https://api.adzuna.com/v1/api/jobs/"
-            f"{country_code}/search/1"
-        )
+        url = f"https://api.adzuna.com/v1/api/jobs/{country_code}/search/1"
 
         params = {
             "app_id": ADZUNA_APP_ID,
@@ -45,139 +39,65 @@ class AdzunaCollector(JobCollector):
 
         if filter.employment_type == "parttime":
             params["contract_time"] = "part_time"
-
         elif filter.employment_type == "fulltime":
             params["contract_time"] = "full_time"
 
-        if filter.min_salary:
-            params["salary_min"] = filter.min_salary
+        if filter.min_salary and filter.min_salary > 0:
+            params["salary_min"] = filter.min_salary * 12
 
-        if filter.max_salary:
-            params["salary_max"] = filter.max_salary
+        if filter.max_salary and filter.max_salary > 0:
+            params["salary_max"] = filter.max_salary * 12
 
         print(f"[AdzunaCollector] URL: {url}")
         print(f"[AdzunaCollector] Params: {params}")
 
         try:
-            response = requests.get(
-                url,
-                params=params,
-                timeout=15
-            )
-
-            print(
-                f"[AdzunaCollector] Status: {response.status_code}"
-            )
-
+            response = requests.get(url, params=params, timeout=20)
+            print(f"[AdzunaCollector] Status: {response.status_code}")
             response.raise_for_status()
-
         except requests.RequestException as e:
-            print(
-                f"[AdzunaCollector] request failed: {e}"
-            )
+            print(f"[AdzunaCollector] request failed: {e}")
             return []
 
         data = response.json()
-
-        print(
-            f"[AdzunaCollector] Found {data.get('count',0)} jobs"
-        )
+        print(f"[AdzunaCollector] Found {data.get('count', 0)} jobs")
 
         jobs = []
 
         for job in data.get("results", []):
-
             salary_min = job.get("salary_min")
             salary_max = job.get("salary_max")
 
-            location = job.get("location", {})
+            if salary_min:
+                salary_min = round(salary_min / 12)
+            if salary_max:
+                salary_max = round(salary_max / 12)
 
-            if isinstance(location, dict):
-                city_name = location.get(
-                    "display_name",
-                    filter.city
-                )
-            else:
-                city_name = filter.city
+            location = job.get("location", {})
+            city_name = location.get("display_name", filter.city) if isinstance(location, dict) else filter.city
 
             company = job.get("company", {})
-
-            if isinstance(company, dict):
-                company_name = company.get(
-                    "display_name",
-                    "Unknown"
-                )
-            else:
-                company_name = str(company)
+            company_name = company.get("display_name", "Unknown") if isinstance(company, dict) else str(company)
 
             category = job.get("category", {})
-
-            if isinstance(category, dict):
-                category_name = category.get(
-                    "label",
-                    ""
-                )
-            else:
-                category_name = str(category)
+            category_name = category.get("label", "") if isinstance(category, dict) else str(category)
 
             jobs.append({
-
-                "title": job.get(
-                    "title",
-                    "Unknown"
-                ),
-
+                "title": job.get("title", "Unknown"),
                 "company": company_name,
-
                 "city": city_name,
-
                 "country": filter.country,
-
-                "language": (
-                    getattr(
-                        filter,
-                        "language",
-                        "de"
-                    )
-                ),
-
-                "description": (
-                    job.get(
-                        "description",
-                        ""
-                    )
-                ),
-
+                "language": getattr(filter, "language", "de"),
+                "description": job.get("description", ""),
                 "category": category_name,
-
-                "employment_type": (
-                    job.get(
-                        "contract_time",
-                        ""
-                    )
-                ),
-
-                "date": (
-                    job.get("created")
-                    or ""
-                ),
-
+                "employment_type": job.get("contract_time", ""),
+                "date": job.get("created") or "",
                 "salary_min": salary_min,
-
                 "salary_max": salary_max,
-
                 "currency": "EUR",
-
-                "url": job.get(
-                    "redirect_url",
-                    ""
-                ),
-
+                "url": job.get("redirect_url", ""),
                 "source": self.source,
             })
 
-        print(
-            f"[AdzunaCollector] Returning {len(jobs)} jobs"
-        )
-
+        print(f"[AdzunaCollector] Returning {len(jobs)} jobs")
         return jobs

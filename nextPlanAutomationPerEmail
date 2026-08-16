@@ -1,5 +1,11 @@
-1.nachste aufgabe ist die Authomatisirung so aufbauen damit ich nur in dem profil jobsangebote bekommen die mich aktuell interesierren ,zum beispil ,ich suche aktuell minijob mit bis 650 euro monatlihc maximal in ausburg nicht in eienr anderen ortschaft 
+Das ist eine großartige Produktidee! Lass mich dir das Konzept als klares Produktbild zeigen, bevor wir tiefer einsteigen.Das Konzept ist klar und gut umsetzbar. Hier eine kurze Zusammenfassung:
 
-2.die bereitete jobs auf nullposition aufstellen ,nciht so wie aktuell ich mache die page auf und da stehen jobs fur munchen ,deutshcland ,deutsch ,sondern alle angebote allgemein ,land ,sprache,stadt sind zu wahlen 
+**Produktname-Vorschlag:** JobRadar, FilterJob oder Mein Job Scout
 
-3.Employment Type : + uberstundenmoglichkeite
+**Was es ist:** Eine Web-App (SaaS), die im Hintergrund automatisch mehrere Jobportale durchsucht — Kleinanzeigen, LinkedIn, Indeed, Stepstone, Job.de — und nur die Angebote zu dir schickt, die deinen Kriterien entsprechen: Teilzeit, Augsburg/München, 150–550 €/Monat.
+
+**Der Kernnutzen:** Du surfst nicht mehr. Du bekommst eine Benachrichtigung, siehst das Angebot, entscheidest — CV senden oder ignorieren. Fertig.
+
+**Technisch braucht man:** einen Python-Scraper (z.B. mit Playwright oder BeautifulSoup), ein Backend (FastAPI oder Django), eine einfache Weboberfläche, und einen Notification-Dienst (E-Mail oder Telegram Bot). Für einen MVP reicht schon ein einfacher Telegram-Bot der dir täglich gefilterte Angebote schickt — das wäre in einer Woche umsetzbar.
+
+Soll ich den MVP-Plan, den Tech-Stack, oder die Datenbankstruktur als nächstes ausarbeiten?

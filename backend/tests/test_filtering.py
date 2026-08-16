@@ -79,3 +79,15 @@ def test_mini_category_does_not_match_teilzeit_keyword_anymore():
     result = filter_jobs(jobs, filters)
 
     assert [job["title"] for job in result] == ["Minijob Aushilfe"]
+
+
+def test_category_filter_rejects_jobs_that_do_not_match_the_selected_category():
+    filters = JobFilter(city="Munich", job_category="logistik")
+    jobs = [
+        {"title": "Cash Posting Specialist", "category": "", "description": "Handling postings and reconciliation"},
+        {"title": "Lagerist / Kommissionierer", "category": "Logistik", "description": "Warehouse operations"},
+    ]
+
+    result = filter_jobs(jobs, filters)
+
+    assert [job["title"] for job in result] == ["Lagerist / Kommissionierer"]

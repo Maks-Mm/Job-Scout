@@ -1,9 +1,25 @@
 # backend/app/collectors/stepstone.py
 
+import time
+
 import requests
 from bs4 import BeautifulSoup
 
 from app.collectors.base import JobCollector
+
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "de-DE,de;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
+
+_TIMEOUT = 25
+_RETRIES = 2
 
 
 # StepStone benutzt in URLs meist die deutschen Städtenamen.
@@ -19,91 +35,58 @@ CITY_MAP = {
 class StepStoneCollector(JobCollector):
 
     def fetch_jobs(self, filter):
+        city = CITY_MAP.get(filter.city, filter.city).lower()
+        keyword = (filter.keywords or getattr(filter, "job_category", None) or "jobs").lower().replace(" ", "-")
 
-        city = CITY_MAP.get(
-            filter.city,
-            filter.city
-        ).lower()
+        suffix = ""
+        if (getattr(filter, "employment_type", "") or "").lower() in ("parttime", "part_time"):
+            suffix = "?employment[0]=part_time"
 
-        keyword = (
-            filter.keywords
-            if filter.keywords
-            else "job"
-        )
+        url = f"https://www.stepstone.de/jobs/{keyword}/in-{city}.html{suffix}"
+        print(f"[StepStoneCollector] GET {url}")
 
-        # StepStone-Suchpfad: /jobs/<keyword>/in-<stadt>
-        url = (
-            "https://www.stepstone.de/jobs/"
-            f"{keyword.lower().replace(' ', '-')}/in-{city}"
-        )
+        for attempt in range(1, _RETRIES + 1):
+            try:
+                response = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+                print(f"[StepStoneCollector] Status: {response.status_code} (attempt {attempt})")
+                response.raise_for_status()
+                return self._parse(response.text, filter)
+            except requests.exceptions.Timeout:
+                print(f"[StepStoneCollector] Timeout on attempt {attempt}/{_RETRIES}")
+                if attempt < _RETRIES:
+                    time.sleep(2)
+                else:
+                    print("[StepStoneCollector] All attempts timed out, returning 0 jobs")
+                    return []
+            except requests.RequestException as e:
+                print(f"[StepStoneCollector] request failed: {e}")
+                return []
 
-        params = {}
+        return []
 
-        # StepStone kennt eigene Query-Parameter für Arbeitszeit,
-        # die aber nicht immer stabil sind -> zusätzlich lokal filtern.
-        if filter.employment_type == "parttime":
-            params["workType"] = "PART_TIME"
-        elif filter.employment_type == "fulltime":
-            params["workType"] = "FULL_TIME"
-        # else: kein employment_type-Filter gesetzt -> workType weglassen
-
-        try:
-            response = requests.get(
-                url,
-                params=params,
-                headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept-Language": "de-DE,de;q=0.9",
-                },
-                timeout=10,
-            )
-
-            response.raise_for_status()
-
-        except requests.RequestException as e:
-            print(f"[StepStoneCollector] request failed: {e}")
-            return []
-
-        soup = BeautifulSoup(
-            response.text,
-            "html.parser"
-        )
-
+    def _parse(self, html, filter):
+        soup = BeautifulSoup(html, "html.parser")
         jobs = []
 
-        # NOTE: Diese Selektoren sind das fragilste Teil des Collectors.
-        # StepStone rendert Suchergebnisse teils über JS/React, daher kann
-        # es sein, dass hier ohne Headless-Browser (z.B. Playwright) nichts
-        # oder nur ein Teil der Ergebnisse ankommt. Falls das der Fall ist,
-        # bitte auf einen Playwright/Requests-HTML basierten Ansatz wechseln.
         listings = soup.select(
-            "article[data-testid='job-item'], article.res-1tep7hf"
+            "article[data-testid='job-item'], article.res-1tep7hf, article[data-at='job-item']"
         )
 
         for item in listings:
-
             title_element = item.select_one(
-                "[data-testid='job-item-title'], .res-nehv70"
+                "[data-testid='job-item-title'], .res-nehv70, [data-at='job-item-title']"
             )
-
             company_element = item.select_one(
-                "[data-testid='job-item-company-name'], .res-btsdnq"
+                "[data-testid='job-item-company-name'], .res-btsdnq, [data-at='job-item-company-name']"
             )
-
-            link_element = item.select_one("a")
+            link_element = item.select_one("a[data-at='job-item-title'], a[data-testid='job-item-title'], a")
 
             if not title_element:
                 continue
 
             title = title_element.get_text(strip=True)
-            company = (
-                company_element.get_text(strip=True)
-                if company_element
-                else None
-            )
+            company = company_element.get_text(strip=True) if company_element else None
 
-            # StepStone liefert Arbeitszeit nicht immer strukturiert
-            # zurück -> zusätzlich lokal auf Basis des Titels filtern.
             if filter.employment_type == "parttime":
                 if "teilzeit" not in title.lower() and "part time" not in title.lower():
                     continue
@@ -112,20 +95,13 @@ class StepStoneCollector(JobCollector):
                 if "vollzeit" not in title.lower() and "full time" not in title.lower():
                     continue
 
-            # Lokaler Keyword-Filter als zusätzliche Absicherung,
-            # falls die Server-seitige Suche zu breit matcht.
-            if filter.keywords:
-                if filter.keywords.lower() not in title.lower():
-                    continue
+            if filter.keywords and filter.keywords.lower() not in title.lower():
+                continue
 
             href = link_element.get("href") if link_element else None
             job_url = None
             if href:
-                job_url = (
-                    href
-                    if href.startswith("http")
-                    else f"https://www.stepstone.de{href}"
-                )
+                job_url = href if href.startswith("http") else f"https://www.stepstone.de{href}"
 
             jobs.append(
                 {
@@ -142,5 +118,4 @@ class StepStoneCollector(JobCollector):
             )
 
         print(f"[StepStoneCollector] Returned {len(jobs)} jobs")
-
         return jobs

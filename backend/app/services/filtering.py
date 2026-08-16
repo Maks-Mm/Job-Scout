@@ -201,9 +201,8 @@ def filter_jobs(jobs: list, filters: JobFilter):
                 reject("keywords", job)
                 continue
 
-        # Category
+        # Category: apply as a real filter for alert semantics.
         if filters.job_category and filters.job_category != "all":
-
             category_words = CATEGORY_KEYWORDS.get(filters.job_category, [])
 
             searchable_text = " ".join([
@@ -213,7 +212,13 @@ def filter_jobs(jobs: list, filters: JobFilter):
                 str(job.get("category", "")),
             ]).lower()
 
-            if not contains_keyword(searchable_text, category_words):
+            if filters.job_category == "mini":
+                if re.search(r"\b(teilzeit|part[_ ]?time|vollzeit|full[_ ]?time|ausbildung|azubi|praktikum)\b",
+                             searchable_text):
+                    reject("category", job)
+                    continue
+
+            if category_words and not contains_keyword(searchable_text, category_words):
                 reject("category", job)
                 continue
 

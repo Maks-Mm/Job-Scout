@@ -7,6 +7,13 @@ from app.collectors.base import JobCollector
 API_URL = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs"
 API_KEY = "jobboerse-jobsuche"
 
+_HEADERS = {
+    "User-Agent": "Jobsuche/2.9.2 (de.arbeitsagentur.app.ios; build:1077; iOS 17.0)",
+    "X-API-Key": API_KEY,
+    "OAuthAccessToken": "",
+    "Accept": "application/json",
+}
+
 CITY_MAP = {
     "Munich": "München",
     "Cologne": "Köln",
@@ -24,38 +31,38 @@ class ArbeitsagenturCollector(JobCollector):
         params = {
             "wo": search_city,
             "size": 50,
+            "umkreis": 25,
         }
 
         if filter.employment_type == "parttime":
             params["arbeitszeit"] = "tz"
         elif filter.employment_type == "fulltime":
             params["arbeitszeit"] = "vz"
-        # else: no employment_type filter set -> omit arbeitszeit entirely
-
-        headers = {
-            "X-API-Key": API_KEY,
-            "Accept": "application/json",
-        }
 
         try:
             response = requests.get(
                 API_URL,
                 params=params,
-                headers=headers,
-                timeout=10,
+                headers=_HEADERS,
+                timeout=20,
             )
+            print(f"[ArbeitsagenturCollector] URL: {response.url}")
+            print(f"[ArbeitsagenturCollector] Status: {response.status_code}")
+            print(f"[ArbeitsagenturCollector] Search city: {search_city}")
+
+            if response.status_code == 403:
+                print(
+                    "[ArbeitsagenturCollector] 403 — API rejected the request. "
+                    "Falling back to 0 results."
+                )
+                return []
 
             response.raise_for_status()
-
         except requests.RequestException as e:
             print(f"[ArbeitsagenturCollector] Request failed: {e}")
             return []
 
         data = response.json()
-
-        print(f"[ArbeitsagenturCollector] URL: {response.url}")
-        print(f"[ArbeitsagenturCollector] Status: {response.status_code}")
-        print(f"[ArbeitsagenturCollector] Search city: {search_city}")
 
         if data.get("woOutput", {}).get("suchmodus") == "UNGUELTIG":
             print(f"[ArbeitsagenturCollector] Invalid location: {search_city}")
@@ -64,7 +71,6 @@ class ArbeitsagenturCollector(JobCollector):
         jobs = []
 
         for job in data.get("stellenangebote", []):
-
             arbeitsort = job.get("arbeitsort") or {}
             refnr = job.get("refnr")
 
@@ -89,8 +95,5 @@ class ArbeitsagenturCollector(JobCollector):
                 }
             )
 
-        print(
-            f"[ArbeitsagenturCollector] Returned {len(jobs)} jobs"
-        )
-
+        print(f"[ArbeitsagenturCollector] Returned {len(jobs)} jobs")
         return jobs
