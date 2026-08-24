@@ -1,9 +1,8 @@
-#backend/app/models/job.py
+# backend/app/models/job.py
 
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from datetime import datetime
 
 
 class Job(Base):
@@ -11,15 +10,14 @@ class Job(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
-    company = Column(String)
-    city = Column(String)
-    salary_min = Column(Float)
-    salary_max = Column(Float)
+    company = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    salary_min = Column(Float, nullable=True)
+    salary_max = Column(Float, nullable=True)
     currency = Column(String, default="EUR")
-    url = Column(String, unique=True, nullable=False)
-    source = Column(String)
-    date = Column(String)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+    url = Column(String, unique=True, nullable=False, index=True)
+    source = Column(String, nullable=True)
+    date = Column(String, nullable=True)
+
+    # IMPORTANT: back_populates name must match UserJob.job
     user_jobs = relationship("UserJob", back_populates="job")

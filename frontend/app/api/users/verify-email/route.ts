@@ -1,45 +1,81 @@
-// frontend/app/api/users/verify-email/route.ts
+//frontend/app/api/users/verify-email/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     const backend = process.env.NEXT_PUBLIC_API_URL;
+
     if (!backend) {
-      return NextResponse.json({ error: "API_URL is not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "API_URL is not configured" },
+        { status: 500 }
+      );
     }
 
-    const url = new URL(request.url);
-    const token = url.searchParams.get("token") || "";
+    const { searchParams } = new URL(request.url);
+    const token = searchParams.get("token");
 
-    const res = await fetch(`${backend}/api/users/verify-email?token=${encodeURIComponent(token)}`, {
+    if (!token) {
+      return NextResponse.json(
+        { detail: "Missing verification token." },
+        { status: 400 }
+      );
+    }
+
+    const backendUrl =
+      `${backend.replace(/\/$/, "")}` +
+      `/api/users/verify-email?token=${encodeURIComponent(token)}`;
+
+    const res = await fetch(backendUrl, {
       method: "GET",
       cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
     });
 
     const contentType = res.headers.get("content-type") || "";
     const text = await res.text();
 
-    if (!res.ok) {
+    let data: unknown;
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
       return NextResponse.json(
-        { error: "Backend returned an error", status: res.status, body: text },
-        { status: res.status }
+        {
+          detail: "Backend did not return valid JSON.",
+          received: text.substring(0, 500),
+        },
+        { status: 502 }
       );
     }
 
     if (!contentType.includes("application/json")) {
       return NextResponse.json(
-        { error: "Backend did not return JSON", received: text.substring(0, 500) },
+        {
+          detail: "Backend did not return JSON.",
+          received: text.substring(0, 500),
+        },
         { status: 502 }
       );
     }
 
-    return new NextResponse(text, {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+    return NextResponse.json(data, {
+      status: res.status,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to verify email" }, { status: 500 });
+    console.error("Email verification proxy error:", error);
+
+    return NextResponse.json(
+      { detail: "Failed to verify email." },
+      { status: 500 }
+    );
   }
 }

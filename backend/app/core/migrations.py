@@ -48,6 +48,7 @@ def ensure_user_schema():
             ("consent_date",              "DATETIME"),
             ("verified_email",            "BOOLEAN DEFAULT 0"),
             ("email_verification_token",  "TEXT"),
+            ("email_verification_expires_at", "DATETIME"),
             ("unsubscribe_token",         "TEXT"),
             ("country",                   "TEXT DEFAULT 'Germany'"),
             ("city",                      "TEXT"),
