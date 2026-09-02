@@ -24,6 +24,15 @@ PASSWORD = normalize_gmail_password(os.environ.get("GMAIL_APP_PASSWORD"))
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
+print(
+    "[EmailService] Configuration:"
+    f" sender={EMAIL}"
+    f" smtp={SMTP_SERVER}:{SMTP_PORT}"
+    f" password_configured={bool(PASSWORD)}"
+    f" frontend={FRONTEND_URL}"
+    f" backend={BACKEND_URL}"
+)
+
 # How many hours ago a job is considered "fresh"
 FRESH_HOURS = 24
 
@@ -344,16 +353,49 @@ def send_verification_email(receiver: str, token: str) -> bool:
 
     try:
         if not EMAIL or not PASSWORD:
-            print("[EmailService] ❌ Verification email failed: missing GMAIL_FROM or GMAIL_APP_PASSWORD")
+            print(
+                "[EmailService] Verification email failed: "
+                "missing Gmail credentials"
+            )
             return False
 
-        print(f"[EmailService] Sending verification to {receiver}")
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        print(
+            f"[EmailService] Connecting to Gmail SMTP for verification → {receiver}"
+        )
+
+        server = smtplib.SMTP(
+            SMTP_SERVER,
+            SMTP_PORT,
+            timeout=30,
+        )
+
         server.starttls()
-        server.login(EMAIL, PASSWORD)
-        server.send_message(msg)
+        print("[EmailService] SMTP TLS established")
+
+        server.login(
+            EMAIL,
+            PASSWORD,
+        )
+        print("[EmailService] SMTP authentication successful")
+
+        response = server.send_message(msg)
+        print(f"[EmailService] SMTP send response: {response}")
+
         server.quit()
+        print(
+            f"[EmailService] Verification email accepted for delivery to {receiver}"
+        )
+
         return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[EmailService] Gmail authentication failed: {e}")
+        return False
+
+    except smtplib.SMTPException as e:
+        print(f"[EmailService] SMTP error: {e}")
+        return False
+
     except Exception as e:
-        print(f"[EmailService] ❌ Verification email failed: {e}")
+        print(f"[EmailService] Unexpected verification error: {repr(e)}")
         return False
