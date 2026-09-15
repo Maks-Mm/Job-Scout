@@ -6,7 +6,7 @@ from app.core.database import SessionLocal
 from app.models.job import Job
 from app.services.job_service import get_jobs
 from app.services.filtering import JobFilter
-from app.workers.job_notifier import check_new_jobs
+from app.workers.job_notifier import check_recent_jobs
 
 
 scheduler = BackgroundScheduler()
@@ -20,7 +20,14 @@ def update_jobs():
     try:
         total_new = 0
         total_updated = 0
-        new_jobs = []
+
+        # All jobs collected during this scheduler run.
+        # These are later evaluated for alerts.
+        all_collected_jobs: list[dict] = []
+
+        # Critical:
+        # Prevent duplicate URLs inside the same scheduler run.
+        seen_urls: set[str] = set()
 
         for city in CITIES:
             filters = JobFilter(
@@ -40,10 +47,25 @@ def update_jobs():
 
                 if not url:
                     print(
-                        f"[Scheduler] Skipping job without URL: "
+                        "[Scheduler] Skipping job without URL: "
                         f"{job.get('title', 'unknown')}"
                     )
                     continue
+
+                # -------------------------------------------------
+                # Prevent duplicate processing in this run.
+                # -------------------------------------------------
+                if url in seen_urls:
+                    print(
+                        "[Scheduler] Duplicate URL in current run, "
+                        f"skipping DB insert: {url}"
+                    )
+                    continue
+
+                seen_urls.add(url)
+
+                # Keep the collected job for the alert evaluator.
+                all_collected_jobs.append(job)
 
                 existing = (
                     db.query(Job)
@@ -57,14 +79,20 @@ def update_jobs():
                     existing.city = job.get("city") or city
                     existing.salary_min = job.get("salary_min")
                     existing.salary_max = job.get("salary_max")
-                    existing.currency = job.get("currency", "EUR")
+                    existing.currency = job.get(
+                        "currency",
+                        "EUR",
+                    )
                     existing.source = job.get("source")
-                    existing.date = (
+
+                    new_date = (
                         job.get("date")
                         or job.get("created_at")
                         or job.get("posted_at")
-                        or existing.date
                     )
+
+                    if new_date:
+                        existing.date = new_date
 
                     total_updated += 1
 
@@ -75,7 +103,10 @@ def update_jobs():
                         city=job.get("city") or city,
                         salary_min=job.get("salary_min"),
                         salary_max=job.get("salary_max"),
-                        currency=job.get("currency", "EUR"),
+                        currency=job.get(
+                            "currency",
+                            "EUR",
+                        ),
                         url=url,
                         source=job.get("source"),
                         date=(
@@ -86,32 +117,32 @@ def update_jobs():
                     )
 
                     db.add(new_job)
-                    new_jobs.append(job)
                     total_new += 1
 
         db.commit()
 
         print(
-            f"[Scheduler] Run complete: "
+            "[Scheduler] Run complete: "
             f"{total_new} new, "
-            f"{total_updated} updated"
+            f"{total_updated} updated, "
+            f"{len(all_collected_jobs)} unique collected"
         )
 
-        # Only notify about jobs that were actually new
-        # during this scheduler run.
-        if new_jobs:
-            print(
-                f"[Scheduler] Sending "
-                f"{len(new_jobs)} new jobs to notifier"
-            )
-
-            check_new_jobs(new_jobs)
-        else:
-            print("[Scheduler] No new jobs to notify")
+        # IMPORTANT:
+        # Always evaluate collected jobs.
+        #
+        # It does NOT matter whether a job was newly inserted
+        # into the database during this run.
+        check_recent_jobs(
+            all_collected_jobs
+        )
 
     except Exception as e:
         db.rollback()
-        print(f"[Scheduler] update_jobs failed: {e}")
+
+        print(
+            f"[Scheduler] update_jobs failed: {e}"
+        )
 
     finally:
         db.close()
@@ -130,6 +161,12 @@ def start_scheduler():
 
     scheduler.start()
 
-    print("[Scheduler] running every 30 minutes")
-    print("[Scheduler] running initial job immediately on startup")
+    print(
+        "[Scheduler] running every 30 minutes"
+    )
+
+    print(
+        "[Scheduler] running initial job immediately on startup"
+    )
+
     update_jobs()

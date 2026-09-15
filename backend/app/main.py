@@ -11,11 +11,11 @@ import app.models  # noqa: F401  — triggers app/models/__init__.py
 from app.api.routes.jobs import router as jobs_router
 from app.api.routes.users import router as users_router
 from app.workers.scheduler import start_scheduler
-from app.core.migrations import ensure_user_schema
+from app.core.migrations import ensure_database_schema
 
 app = FastAPI()
 
-ensure_user_schema()
+ensure_database_schema()
 
 app.add_middleware(
     CORSMiddleware,

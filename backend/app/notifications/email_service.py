@@ -2,7 +2,7 @@
 
 import smtplib
 import os
-from datetime import datetime, date
+from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
@@ -41,10 +41,19 @@ def _is_fresh(date_str: str | None) -> bool:
     """Return True if the job was posted within the last FRESH_HOURS hours."""
     if not date_str:
         return False
+
     try:
-        job_date = datetime.fromisoformat(date_str[:19])
-        delta = datetime.utcnow() - job_date
-        return delta.total_seconds() < FRESH_HOURS * 3600
+        raw = date_str.strip().replace("Z", "+00:00")
+        job_date = datetime.fromisoformat(raw)
+
+        if job_date.tzinfo is None:
+            job_date = job_date.replace(tzinfo=timezone.utc)
+
+        job_date = job_date.astimezone(timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = now - job_date
+
+        return 0 <= delta.total_seconds() < FRESH_HOURS * 3600
     except Exception:
         return False
 

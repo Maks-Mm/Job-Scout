@@ -1,458 +1,167 @@
-Aktueller Stand deines Projekts:
+Yes. The screenshots make the symptom very clear.
 
-Du hast momentan **eine Backend-Simulation**, keine echte Job-Suchmaschine.
+In both messages, Gmail shows:
 
-Der Datenfluss ist aktuell:
-
-```
-Frontend (Next.js)
-        |
-        | GET /api/jobs?city=Munich&min_salary=150
-        |
-        v
-FastAPI
-app/api/jobs.py
-        |
-        v
-job_service.py
-        |
-        v
-scrape_indeed()
-        |
-        v
-Hardcoded Python Liste
-        |
-        v
-SQLite Datenbank
-        |
-        v
-JSON Response
-        |
-        v
-Frontend zeigt Jobs
+```text
+Von: maxfilawwwrest@gmail.com
+An:   maxfilawwwrest@gmail.com
 ```
 
-Der "Scraper" ist momentan nur:
+So the message was actually addressed to the sender account itself. This is not a Gmail display issue. The application is supplying `maxfilawwwrest@gmail.com` as the recipient for these messages.
+
+That gives us an important distinction:
+
+```text
+GMAIL_FROM / EMAIL
+        ↓
+defines the SMTP sender
+```
+
+versus
+
+```text
+receiver / recipient / to / msg["To"]
+        ↓
+defines where the email goes
+```
+
+Your SMTP mechanism can therefore be working perfectly while the application still sends everything to the wrong mailbox.
+
+And the evidence from the earlier code is especially important here. Your job-notification path explicitly contains:
 
 ```python
-return [
- {
-  "title": "...",
-  "url": "https://indeed.de"
- }
-]
+send_job_email(
+    receiver=user.email,
+    ...
+)
 ```
 
-Deshalb siehst du immer dieselben 6 Jobs. Es gibt keine Verbindung zu Indeed, Stepstone, LinkedIn usw.
-
----
-
-## Was eine echte Version braucht
-
-Eine reale Architektur sieht so aus:
-
-```
-                 USER
-                  |
-                  |
-             Frontend
-             Next.js
-                  |
-                  |
-              FastAPI
-                  |
-     +------------+-------------+
-     |                          |
-     |                          |
- Authentication              Job API
- JWT / OAuth2                 |
-                              |
-                  +-----------+-----------+
-                  |           |           |
-                  |           |           |
-              Indeed API   LinkedIn    StepStone
-                  |           |           |
-                  +-----------+-----------+
-                              |
-                              |
-                        Normalizer
-                              |
-                              |
-                         PostgreSQL
-                              |
-                              |
-                       Search Engine
-                       Elasticsearch
-                              |
-                              |
-                         Filters
-                 City Salary Category
-```
-
----
-
-# Roadmap von deinem aktuellen Zustand bis echte Jobplattform
-
-## Phase 1 — Datenbank richtig aufbauen (jetzt)
-
-Du hast:
-
-```
-Job
- ├── title
- ├── company
- ├── city
- ├── salary
- ├── url
- └── source
-```
-
-Das reicht nicht.
-
-Erweitern:
-
-```
-jobs table
-
-id
-title
-company
-description
-city
-country
-salary_min
-salary_max
-currency
-category
-skills
-employment_type
-remote
-source
-external_id
-url
-created_at
-updated_at
-```
-
-Warum?
-
-Weil Filter sonst nicht funktionieren.
-
-Beispiel:
-
-User:
-
-```
-Munich
-Salary > 50000
-Python
-Remote
-```
-
-Dafür brauchst du:
-
-```
-WHERE city='Munich'
-AND salary_min > 50000
-AND skills contains Python
-AND remote=true
-```
-
----
-
-## Phase 2 — Echte Datenquellen anschließen
-
-Nicht direkt Webseiten scrapen.
-
-Professioneller:
-
-### APIs benutzen
-
-Beispiele:
-
-* Adzuna API
-* Jooble API
-* RapidAPI Job APIs
-
-Ablauf:
-
-```
-FastAPI
- |
- |
-Job Collector
- |
- |
-Adzuna API
- |
- |
-JSON
- |
- |
-Database
-```
-
-Beispiel:
-
-Request:
-
-```
-GET api.adzuna.com/jobs/de/search?what=python&where=munich
-```
-
-Antwort:
-
-```json
-{
-"title":"Python Developer",
-"company":"BMW",
-"location":"Munich",
-"salary":65000
-}
-```
-
-Dann speichern.
-
----
-
-## Phase 3 — API Keys / Sicherheit
-
-Jetzt hast du keine Keys.
-
-Professionell:
-
-`.env`
-
-```
-ADZUNA_APP_ID=xxxx
-ADZUNA_SECRET=xxxx
-
-DATABASE_URL=postgresql://user:pass@localhost/jobs
-
-JWT_SECRET=random_secret
-```
-
-Python:
+So, at that point in the pipeline, the recipient is supposed to come from:
 
 ```python
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-API_KEY=os.getenv("ADZUNA_SECRET")
+user.email
 ```
 
-Nicht:
+For verification, `send_verification_email()` likewise receives a recipient argument explicitly.
+
+Therefore the problem has narrowed substantially. We now need to find the place where the application's intended user email is being replaced by, initialized as, or passed as:
+
+```text
+maxfilawwwrest@gmail.com
+```
+
+There are only a few realistic locations:
+
+```text
+User registration / alert subscription
+        ↓
+user.email
+        ↓
+verification email receiver
+        ↓
+database User.email
+
+and later:
+
+User.email
+        ↓
+job_notifier.process_user()
+        ↓
+send_job_email(receiver=user.email)
+```
+
+If you submitted:
+
+```text
+mmpryshchepa@gmail.com
+```
+
+but the received email says:
+
+```text
+To: maxfilawwwrest@gmail.com
+```
+
+then one of these things is happening:
+
+```text
+A. mmpryshchepa@gmail.com never gets stored in User.email
+```
+
+or
+
+```text
+B. it is stored correctly but later overwritten/replaced
+```
+
+or
+
+```text
+C. the endpoint creates the user with the sender address instead of the submitted address
+```
+
+or
+
+```text
+D. the frontend/proxy sends the wrong email value to FastAPI
+```
+
+or
+
+```text
+E. the correct user is loaded, but email_service ignores its receiver argument and uses EMAIL
+```
+
+The screenshots alone strongly support the hypothesis that the recipient path is wrong, but they do **not yet tell us which of A–E is responsible**.
+
+One especially important thing to check is the distinction inside `email_service.py`:
 
 ```python
-API_KEY="123456"
+EMAIL
 ```
 
-im Code.
+is the configured sender, while:
 
----
-
-## Phase 4 — Datenbank ersetzen
-
-Jetzt:
-
-```
-SQLite
+```python
+receiver
 ```
 
-Für Entwicklung ok.
+must become the actual `To` address.
 
-Produktion:
+Conceptually, the function must do:
 
-```
-PostgreSQL
-```
-
-mit:
-
-```
-Docker
-
-postgres container
-        |
-        |
-FastAPI
+```python
+msg["From"] = EMAIL
+msg["To"] = receiver
 ```
 
-docker-compose:
+and never:
 
-```
-services:
-
- backend:
-   build .
-
- database:
-   image postgres
-
+```python
+msg["To"] = EMAIL
 ```
 
----
+For your job email, the intended result should be:
 
-## Phase 5 — echte Scraper (falls API fehlt)
-
-Wenn ein Portal keine API anbietet:
-
-```
-Scheduler
-     |
-     |
-Scraper
-     |
-     |
-BeautifulSoup / Playwright
-     |
-     |
-Parser
-     |
-     |
-Database
+```text
+From: maxfilawwwrest@gmail.com
+To:   mmpryshchepa@gmail.com
 ```
 
-Beispiel:
+That is perfectly normal. The Gmail account does not need to equal the recipient.
 
-Portal HTML:
+So I agree with your revised diagnosis: **the next investigation should focus on recipient propagation, not on APScheduler, job collection, verification timing, or SMTP connectivity.**
 
-```
-<div class="job">
- Python Developer
- BMW
- Munich
-</div>
-```
+The most useful next evidence is the code for the endpoint that receives the email during subscription, the `User` model, and the exact `send_verification_email()` / `send_job_email()` implementation currently running. Those three points will let us trace:
 
-wird:
-
-```json
-{
-"title":"Python Developer",
-"company":"BMW",
-"city":"Munich"
-}
+```text
+entered email
+   ↓
+database User.email
+   ↓
+receiver argument
+   ↓
+SMTP To header
 ```
 
----
-
-## Phase 6 — Hintergrundprozesse
-
-Jetzt läuft dein Scraper nur wenn User klickt.
-
-Später:
-
-```
-Celery
- |
- |
-Redis
- |
- |
-every 6 hours
-
-collect_jobs()
-```
-
-Also:
-
-06:00
-
-```
-API holen
-|
-Daten speichern
-|
-alte Jobs löschen
-```
-
----
-
-## Phase 7 — Suche und Filter
-
-Frontend:
-
-User:
-
-```
-City:
-Munich
-
-Salary:
-60000
-
-Category:
-IT
-```
-
-Request:
-
-```
-GET
-
-/api/jobs?
-
-city=Munich
-salary=60000
-category=IT
-```
-
-Backend:
-
-SQL:
-
-```sql
-SELECT *
-FROM jobs
-WHERE city='Munich'
-AND salary_min >= 60000
-AND category='IT';
-```
-
----
-
-## Dein aktueller Projektstatus
-
-Du bist hier:
-
-```
-[███████░░░░░░░]
-
-Backend Struktur fertig
-FastAPI läuft
-Database vorhanden
-Models vorhanden
-Frontend verbunden
-
-ABER:
-
-❌ keine echte Jobquelle
-❌ keine API Keys
-❌ kein Auth System
-❌ kein PostgreSQL
-❌ keine Scheduler
-❌ keine echten Filter
-❌ keine Suchengine
-```
-
----
-
-## Nächste konkrete Schritte
-
-Reihenfolge:
-
-1. SQLite Model verbessern
-2. PostgreSQL + Docker einbauen
-3. `.env` konfigurieren
-4. Eine echte Job API anschließen
-5. JSON normalisieren
-6. Speichern
-7. Filter API bauen
-8. Frontend mit echten Daten verbinden
-9. Scheduler hinzufügen
-10. Auth/JWT hinzufügen
-
-Momentan ist dein Backend das Grundgerüst. Die "Job Scout"-Funktionalität entsteht erst ab Schritt 4.
+without changing anything prematurely.

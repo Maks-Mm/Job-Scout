@@ -1,6 +1,6 @@
 # backend/app/workers/job_notifier.py
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from app.services.filtering import filter_jobs, JobFilter
 from app.notifications.email_service import send_job_email
@@ -10,32 +10,195 @@ from app.models.job import Job
 from app.models.user_job import UserJob
 
 
-def check_new_jobs(new_jobs: list[dict]):
-    print(
-        f"[Notifier] Checking "
-        f"{len(new_jobs)} newly discovered jobs"
+ALERT_WINDOW_HOURS = 24
+MAX_JOBS_PER_EMAIL = 20
+
+
+def _parse_job_datetime(value) -> datetime | None:
+    if not value:
+        return None
+
+    try:
+        if isinstance(value, datetime):
+            dt = value
+
+        elif hasattr(value, "year") and hasattr(
+            value,
+            "month",
+        ) and hasattr(
+            value,
+            "day",
+        ):
+            dt = datetime(
+                value.year,
+                value.month,
+                value.day,
+            )
+
+        elif isinstance(value, str):
+            raw = value.strip()
+
+            if not raw:
+                return None
+
+            raw = raw.replace(
+                "Z",
+                "+00:00",
+            )
+
+            dt = datetime.fromisoformat(raw)
+
+        else:
+            return None
+
+        if dt.tzinfo is None:
+            dt = dt.replace(
+                tzinfo=timezone.utc
+            )
+
+        return dt.astimezone(
+            timezone.utc
+        )
+
+    except Exception:
+        return None
+
+
+def _get_job_datetime(
+    job: dict,
+) -> datetime | None:
+    return _parse_job_datetime(
+        job.get("date")
+        or job.get("created_at")
+        or job.get("posted_at")
     )
 
-    if not new_jobs:
-        print("[Notifier] No new jobs")
+
+def _filter_recent_jobs(
+    jobs: list[dict],
+    hours: int = ALERT_WINDOW_HOURS,
+) -> list[dict]:
+    now = datetime.now(
+        timezone.utc
+    )
+
+    cutoff = (
+        now
+        - timedelta(hours=hours)
+    )
+
+    recent_jobs = []
+    skipped_without_date = 0
+
+    for job in jobs:
+        published_at = _get_job_datetime(
+            job
+        )
+
+        if published_at is None:
+            skipped_without_date += 1
+            continue
+
+        if cutoff <= published_at <= now:
+            recent_jobs.append(job)
+
+    print(
+        "[Notifier] Recent-job window: "
+        f"{len(recent_jobs)} jobs within last "
+        f"{hours}h"
+    )
+
+    if skipped_without_date:
+        print(
+            "[Notifier] Skipped "
+            f"{skipped_without_date} jobs "
+            "without valid publication date"
+        )
+
+    return recent_jobs
+
+
+def check_recent_jobs(
+    collected_jobs: list[dict],
+):
+    print(
+        "[Notifier] Evaluating "
+        f"{len(collected_jobs)} collected jobs"
+    )
+
+    if not collected_jobs:
+        print(
+            "[Notifier] No collected jobs"
+        )
         return
+
+    recent_jobs = _filter_recent_jobs(
+        collected_jobs,
+        ALERT_WINDOW_HOURS,
+    )
+
+    if not recent_jobs:
+        print(
+            "[Notifier] No jobs inside "
+            f"the last {ALERT_WINDOW_HOURS} hours"
+        )
+        return
+
+    # Deduplicate again before user evaluation.
+    unique_jobs: dict[str, dict] = {}
+
+    for job in recent_jobs:
+        url = job.get("url")
+
+        if not url:
+            continue
+
+        unique_jobs[url] = job
+
+    recent_jobs = list(
+        unique_jobs.values()
+    )
+
+    print(
+        "[Notifier] Unique recent jobs: "
+        f"{len(recent_jobs)}"
+    )
 
     users = get_users_with_alerts()
 
     print(
-        f"[Notifier] Found "
+        "[Notifier] Found "
         f"{len(users)} eligible users"
     )
 
     if not users:
-        print("[Notifier] No eligible users")
+        print(
+            "[Notifier] No eligible users"
+        )
         return
 
     for user in users:
-        process_user(user, new_jobs)
+        process_user(
+            user,
+            recent_jobs,
+        )
 
 
-def process_user(user, new_jobs: list[dict]):
+def check_new_jobs(
+    new_jobs: list[dict],
+):
+    """
+    Backward-compatible wrapper.
+    """
+    check_recent_jobs(
+        new_jobs
+    )
+
+
+def process_user(
+    user,
+    recent_jobs: list[dict],
+):
     print(
         f"[Notifier] Processing {user.email} "
         f"city={user.city} "
@@ -46,25 +209,48 @@ def process_user(user, new_jobs: list[dict]):
 
     try:
         filter_params = JobFilter(
-            country=getattr(user, "country", "Germany") or "Germany",
-            city=getattr(user, "city", "") or "",
-            keywords=getattr(user, "keywords", "") or "",
-            language=getattr(user, "language", "de") or "de",
+            country=getattr(
+                user,
+                "country",
+                "Germany",
+            ) or "Germany",
+
+            city=getattr(
+                user,
+                "city",
+                "",
+            ) or "",
+
+            keywords=getattr(
+                user,
+                "keywords",
+                "",
+            ) or "",
+
+            language=getattr(
+                user,
+                "language",
+                "de",
+            ) or "de",
+
             employment_type=getattr(
                 user,
                 "employment_type",
                 "all",
             ) or "all",
+
             job_category=getattr(
                 user,
                 "job_category",
                 "all",
             ) or "all",
+
             min_salary=getattr(
                 user,
                 "min_salary",
                 None,
             ),
+
             max_salary=getattr(
                 user,
                 "max_salary",
@@ -73,23 +259,23 @@ def process_user(user, new_jobs: list[dict]):
         )
 
         print(
-            f"[Notifier] Filter: "
+            "[Notifier] Filter: "
             f"{filter_params.model_dump()}"
         )
 
         filtered = filter_jobs(
-            new_jobs,
+            recent_jobs,
             filter_params,
         )
 
         print(
-            f"[Notifier] Matching new jobs: "
+            "[Notifier] Matching recent jobs: "
             f"{len(filtered)}"
         )
 
         if not filtered:
             print(
-                f"[Notifier] No matching jobs "
+                "[Notifier] No matching jobs "
                 f"for {user.email}"
             )
             return
@@ -100,30 +286,42 @@ def process_user(user, new_jobs: list[dict]):
         )
 
         print(
-            f"[Notifier] Unsent jobs: "
+            "[Notifier] Matching but unsent: "
             f"{len(unsent)}"
         )
 
         if not unsent:
             print(
-                f"[Notifier] All matching jobs "
+                "[Notifier] All matching recent jobs "
                 f"already sent to {user.email}"
             )
             return
 
-        unsent = _sort_by_freshness(unsent)
+        unsent = _sort_by_freshness(
+            unsent
+        )
+
+        # Only these jobs are actually sent.
+        jobs_to_send = unsent[
+            :MAX_JOBS_PER_EMAIL
+        ]
 
         print(
-            f"[Notifier] Sending "
-            f"{len(unsent)} jobs to {user.email}"
+            "[Notifier] Sending "
+            f"{len(jobs_to_send)} jobs "
+            f"to {user.email}"
         )
 
         sent = send_job_email(
             receiver=user.email,
-            jobs=unsent,
+            jobs=jobs_to_send,
             unsubscribe_token=user.unsubscribe_token,
             user_filters={
-                "city": getattr(user, "city", ""),
+                "city": getattr(
+                    user,
+                    "city",
+                    "",
+                ),
                 "country": getattr(
                     user,
                     "country",
@@ -153,22 +351,25 @@ def process_user(user, new_jobs: list[dict]):
         )
 
         print(
-            f"[Notifier] send_job_email result: {sent}"
+            "[Notifier] send_job_email result: "
+            f"{sent}"
         )
 
         if sent is True:
-            save_sent_jobs(user, unsent)
-
+            save_sent_jobs(
+                user,
+                jobs_to_send,
+            )
         else:
             print(
-                f"[Notifier] Email failed for "
+                "[Notifier] Email failed for "
                 f"{user.email}; "
-                f"jobs remain unsent"
+                "jobs remain unsent"
             )
 
     except Exception as e:
         print(
-            f"[Notifier] Error processing "
+            "[Notifier] Error processing "
             f"{user.email}: {e}"
         )
 
@@ -177,17 +378,16 @@ def _sort_by_freshness(
     jobs: list[dict],
 ) -> list[dict]:
     def _date_key(job: dict):
-        raw = (
-            job.get("date")
-            or job.get("created_at")
-            or job.get("posted_at")
-            or ""
+        published_at = _get_job_datetime(
+            job
         )
 
-        if not raw:
-            return ""
+        if published_at is None:
+            return datetime.min.replace(
+                tzinfo=timezone.utc
+            )
 
-        return raw[:10]
+        return published_at
 
     return sorted(
         jobs,
@@ -214,7 +414,8 @@ def get_users_with_alerts():
 
     except Exception as e:
         print(
-            f"[Notifier] Error fetching users: {e}"
+            "[Notifier] Error fetching users: "
+            f"{e}"
         )
         return []
 
@@ -234,7 +435,9 @@ def remove_already_sent(
 
     try:
         sent_job_urls = (
-            db.query(UserJob.job_url)
+            db.query(
+                UserJob.job_url
+            )
             .filter(
                 UserJob.user_id == user.id
             )
@@ -250,14 +453,22 @@ def remove_already_sent(
         return [
             job
             for job in jobs
-            if job.get("url")
-            and job.get("url") not in sent_urls
+            if (
+                job.get("url")
+                and job.get("url")
+                not in sent_urls
+            )
         ]
 
     except Exception as e:
         print(
-            f"[Notifier] Error checking sent jobs: {e}"
+            "[Notifier] Error checking sent jobs: "
+            f"{e}"
         )
+
+        # Fail closed.
+        # If we cannot establish the sent state,
+        # do not risk duplicate emails.
         return []
 
     finally:
@@ -277,22 +488,26 @@ def save_sent_jobs(
         saved_count = 0
 
         for job in jobs:
-            job_url = job.get("url")
+            job_url = job.get(
+                "url"
+            )
 
             if not job_url:
                 continue
 
             existing_job = (
                 db.query(Job)
-                .filter(Job.url == job_url)
+                .filter(
+                    Job.url == job_url
+                )
                 .first()
             )
 
             if not existing_job:
                 print(
-                    f"[Notifier] WARNING: "
+                    "[Notifier] WARNING: "
                     f"Job {job_url} does not exist "
-                    f"in Job table"
+                    "in Job table"
                 )
                 continue
 
@@ -322,7 +537,7 @@ def save_sent_jobs(
         db.commit()
 
         print(
-            f"[Notifier] Saved "
+            "[Notifier] Saved "
             f"{saved_count} sent jobs "
             f"for {user.email}"
         )
@@ -331,7 +546,8 @@ def save_sent_jobs(
         db.rollback()
 
         print(
-            f"[Notifier] Error saving sent jobs: {e}"
+            "[Notifier] Error saving sent jobs: "
+            f"{e}"
         )
 
     finally:
