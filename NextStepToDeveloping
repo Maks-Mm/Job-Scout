@@ -1,167 +1,1163 @@
-Yes. The screenshots make the symptom very clear.
+Ja. Die Logs zeigen ziemlich eindeutig, warum eure App trotz mehrerer Quellen deutlich weniger Ergebnisse liefert als z. B. Kleinanzeigen. Das Hauptproblem ist momentan nicht die Anzahl der Quellen, sondern die Pipeline zwischen „Quelle liefert Jobs“ und „Job wird dem Nutzer angezeigt bzw. per E-Mail gemeldet“.
 
-In both messages, Gmail shows:
+Auf deinem Screenshot ist außerdem sichtbar: Die letzte Job-Scout-Mail kam am **16.09.2026**. Am 20.09. läuft der Backend-Scheduler zwar wieder, aber er findet für die aktiven Filter **0 passende Jobs**. Deshalb wird keine neue E-Mail verschickt. Das ist also momentan primär ein Matching-/Filterproblem, nicht zwingend ein E-Mail-Transportproblem.
 
-```text
-Von: maxfilawwwrest@gmail.com
-An:   maxfilawwwrest@gmail.com
-```
+### 1. Eure aktuelle Pipeline verliert fast alle Jobs
 
-So the message was actually addressed to the sender account itself. This is not a Gmail display issue. The application is supplying `maxfilawwwrest@gmail.com` as the recipient for these messages.
-
-That gives us an important distinction:
+Dein eigener Log ist hier entscheidend:
 
 ```text
-GMAIL_FROM / EMAIL
-        ↓
-defines the SMTP sender
+All jobs by source before filtering:
+Counter({
+    'Adzuna': 50,
+    'Jooble': 30,
+    'Arbeitnow': 24
+})
 ```
 
-versus
+Das sind insgesamt:
 
 ```text
-receiver / recipient / to / msg["To"]
-        ↓
-defines where the email goes
+104 Jobs
 ```
 
-Your SMTP mechanism can therefore be working perfectly while the application still sends everything to the wrong mailbox.
+Danach:
 
-And the evidence from the earlier code is especially important here. Your job-notification path explicitly contains:
+```text
+[filter_jobs] kept=1
+rejected_by_stage={'category': 103}
+```
+
+Das bedeutet:
+
+```text
+104 gesammelt
+ ↓
+103 wegen Kategorie verworfen
+ ↓
+1 übrig
+```
+
+Und genau deshalb bekommt dein Benutzer praktisch nichts.
+
+Noch wichtiger: Die 103 abgelehnten Jobs sind nicht notwendigerweise schlechte Jobs. Der Log zeigt beispielsweise:
+
+```text
+source='Jooble'
+country=None
+category=None
+title='Remote Benefits Advisor'
+
+source='Jooble'
+country=None
+category=None
+title='Financial Analyst'
+
+source='Jooble'
+country=None
+category=None
+title='Personal Trainer'
+```
+
+Bei Jooble und Arbeitnow ist `category=None`.
+
+Euer Filter interpretiert offenbar:
 
 ```python
-send_job_email(
-    receiver=user.email,
-    ...
-)
+job["category"] != requested_category
 ```
 
-So, at that point in the pipeline, the recipient is supposed to come from:
+als Ausschluss.
+
+Damit passiert beispielsweise:
+
+```text
+Jooble Job
+category = None
+        ↓
+User category = "logistik"
+        ↓
+None != "logistik"
+        ↓
+REJECT
+```
+
+Das ist eine massive Datenverluststelle.
+
+---
+
+## 2. Ihr sammelt außerdem viel zu wenige Jobs pro Quelle
+
+Das ist der zweite große Fehler.
+
+Adzuna meldet:
+
+```text
+Found 69759 jobs
+Returning 50 jobs
+```
+
+Ihr habt also theoretisch:
+
+```text
+69.759
+```
+
+Treffer im Suchraum, aber eure Anwendung holt:
+
+```text
+50
+```
+
+Davon filtert ihr anschließend lokal.
+
+Das ist logisch problematisch.
+
+Wenn du beispielsweise nach:
+
+```text
+Berlin
+Logistik
+Vollzeit
+2500–3500 €
+```
+
+suchst, möchtest du nicht:
+
+```text
+Adzuna:
+69.759 verfügbare Jobs
+        ↓
+erste 50
+        ↓
+lokaler Filter
+        ↓
+1 Job
+```
+
+Du möchtest:
+
+```text
+Adzuna
+        ↓
+Berlin
+        ↓
+Logistik
+        ↓
+Vollzeit
+        ↓
+Salary
+        ↓
+Seite 1
+Seite 2
+Seite 3
+...
+        ↓
+alle relevanten Kandidaten
+        ↓
+lokale Normalisierung
+        ↓
+Deduplizierung
+        ↓
+Endfilter
+```
+
+Adzuna unterstützt genau diese Art der Suche über Parameter wie `what`, `where`, `salary_min`, `full_time`, `permanent` und `sort_by`; die API ist also nicht darauf beschränkt, einfach nur 50 allgemeine Treffer zu liefern. ([Adzuna Developer][1])
+
+---
+
+# 3. Eure „7 Quellen“ sind momentan faktisch nicht 7 funktionierende Quellen
+
+Das ist in deinem Log sehr deutlich:
+
+```text
+[Registry] Germany ->
+[
+ 'ArbeitsagenturCollector',
+ 'StepStoneCollector',
+ 'StellenanzeigenCollector',
+ 'KleinanzeigenCollector',
+ 'ArbeitnowCollector',
+ 'Adzuna',
+ 'JoobleCollector'
+]
+```
+
+Das sieht zunächst gut aus.
+
+Aber anschließend:
+
+```text
+StepStoneCollector
+Status: 410
+```
+
+Also:
+
+```text
+StepStone = funktioniert nicht
+```
+
+Dann:
+
+```text
+ArbeitsagenturCollector
+Status: 403
+```
+
+Also:
+
+```text
+Arbeitsagentur = funktioniert nicht
+```
+
+Dann:
+
+```text
+StellenanzeigenCollector
+Returned 0 jobs
+```
+
+Dann:
+
+```text
+KleinanzeigenCollector
+Returned 0 jobs
+```
+
+Tatsächlich liefern in diesem Lauf:
+
+```text
+Adzuna       50
+Jooble       30
+Arbeitnow    24
+
+StepStone     0
+Arbeitsagentur 0
+Stellenanzeigen 0
+Kleinanzeigen 0
+```
+
+Das ist der eigentliche Zustand eurer Deutschland-Suche.
+
+Die Registry sagt:
+
+```text
+7 Quellen
+```
+
+Der Runtime-Output sagt:
+
+```text
+3 Quellen liefern Daten
+4 Quellen liefern nichts
+```
+
+Das ist ein erheblicher Unterschied.
+
+---
+
+# 4. Kleinanzeigen ist tatsächlich ein sehr gutes Beispiel für das Problem
+
+Ich habe die aktuelle Kleinanzeigen-Suche für Berlin geprüft.
+
+Kleinanzeigen zeigt derzeit für Berlin über **38.000 Jobanzeigen** in der allgemeinen Jobsuche; allein „Transport, Logistik & Verkehr“ liegt dort bei über 2.400 Ergebnissen. ([Kleinanzeigen][2])
+
+Und es gibt konkrete Treffer wie:
+
+```text
+Lagerarbeiter (m/w/d)
+2.800–3.000 € / Monat
+Berlin
+```
+
+sowie beispielsweise:
+
+```text
+Anlagenführer
+3.360 € / Monat
+Berlin
+```
+
+([Kleinanzeigen][3])
+
+Das bestätigt deine Beobachtung: Das Problem ist nicht, dass es in Berlin keine passenden Jobs gibt.
+
+Das Problem ist, dass eure Pipeline diese Daten momentan nicht vollständig einsammelt und anschließend zusätzlich einen sehr aggressiven Filter darüberlegt.
+
+---
+
+# 5. Besonders problematisch ist eure Kategorie-Architektur
+
+Das würde ich als erstes ändern.
+
+Ihr habt momentan offenbar:
+
+```text
+source
+    ↓
+raw job
+    ↓
+category
+    ↓
+filter
+```
+
+Das funktioniert nur, wenn jede Quelle zuverlässig eine standardisierte Kategorie liefert.
+
+Das tut sie nicht.
+
+Stattdessen brauchen wir:
+
+```text
+RAW SOURCE DATA
+        ↓
+SOURCE NORMALIZATION
+        ↓
+CATEGORY INFERENCE
+        ↓
+SALARY NORMALIZATION
+        ↓
+EMPLOYMENT NORMALIZATION
+        ↓
+LOCATION NORMALIZATION
+        ↓
+DEDUPLICATION
+        ↓
+USER FILTER
+```
+
+Beispiel:
+
+```json
+{
+  "title": "Lagermitarbeiter (m/w/d)",
+  "source": "Kleinanzeigen",
+  "category": null,
+  "description": "...Kommissionierung, Lager, Warenannahme...",
+  "salary_min": 2800,
+  "salary_max": 3200,
+  "employment_type": null
+}
+```
+
+Daraus muss eure Normalisierung machen:
+
+```json
+{
+  "category": "logistik",
+  "salary_min": 2800,
+  "salary_max": 3200,
+  "employment_type": "fulltime"
+}
+```
+
+Dann kann der eigentliche Userfilter arbeiten.
+
+---
+
+# 6. `category=None` darf nicht automatisch bedeuten „Job existiert nicht“
+
+Das ist wahrscheinlich einer der größten Fehler in eurem aktuellen System.
+
+Statt:
 
 ```python
-user.email
+if requested_category:
+    if job.category != requested_category:
+        reject()
 ```
 
-For verification, `send_verification_email()` likewise receives a recipient argument explicitly.
-
-Therefore the problem has narrowed substantially. We now need to find the place where the application's intended user email is being replaced by, initialized as, or passed as:
-
-```text
-maxfilawwwrest@gmail.com
-```
-
-There are only a few realistic locations:
-
-```text
-User registration / alert subscription
-        ↓
-user.email
-        ↓
-verification email receiver
-        ↓
-database User.email
-
-and later:
-
-User.email
-        ↓
-job_notifier.process_user()
-        ↓
-send_job_email(receiver=user.email)
-```
-
-If you submitted:
-
-```text
-mmpryshchepa@gmail.com
-```
-
-but the received email says:
-
-```text
-To: maxfilawwwrest@gmail.com
-```
-
-then one of these things is happening:
-
-```text
-A. mmpryshchepa@gmail.com never gets stored in User.email
-```
-
-or
-
-```text
-B. it is stored correctly but later overwritten/replaced
-```
-
-or
-
-```text
-C. the endpoint creates the user with the sender address instead of the submitted address
-```
-
-or
-
-```text
-D. the frontend/proxy sends the wrong email value to FastAPI
-```
-
-or
-
-```text
-E. the correct user is loaded, but email_service ignores its receiver argument and uses EMAIL
-```
-
-The screenshots alone strongly support the hypothesis that the recipient path is wrong, but they do **not yet tell us which of A–E is responsible**.
-
-One especially important thing to check is the distinction inside `email_service.py`:
+braucht ihr sinngemäß:
 
 ```python
-EMAIL
+if requested_category:
+    category = normalize_category(job)
+
+    if category is not None:
+        if category != requested_category:
+            reject()
 ```
 
-is the configured sender, while:
-
-```python
-receiver
-```
-
-must become the actual `To` address.
-
-Conceptually, the function must do:
-
-```python
-msg["From"] = EMAIL
-msg["To"] = receiver
-```
-
-and never:
-
-```python
-msg["To"] = EMAIL
-```
-
-For your job email, the intended result should be:
+Noch besser:
 
 ```text
-From: maxfilawwwrest@gmail.com
-To:   mmpryshchepa@gmail.com
+category = explicit source category
+       ↓
+falls fehlt:
+category = inferred category
+       ↓
+falls weiterhin unbekannt:
+category = "unknown"
 ```
 
-That is perfectly normal. The Gmail account does not need to equal the recipient.
+Und `unknown` wird nicht pauschal gelöscht.
 
-So I agree with your revised diagnosis: **the next investigation should focus on recipient propagation, not on APScheduler, job collection, verification timing, or SMTP connectivity.**
+Es kann dann anhand von Titel und Beschreibung bewertet werden.
 
-The most useful next evidence is the code for the endpoint that receives the email during subscription, the `User` model, and the exact `send_verification_email()` / `send_job_email()` implementation currently running. Those three points will let us trace:
+---
+
+# 7. Gehalt muss ebenfalls anders behandelt werden
+
+Nehmen wir:
 
 ```text
-entered email
-   ↓
-database User.email
-   ↓
-receiver argument
-   ↓
-SMTP To header
+2500–3500 € monatlich
 ```
 
-without changing anything prematurely.
+Ein Job kann das Gehalt so angeben:
+
+```text
+3.000 € brutto monatlich
+```
+
+oder:
+
+```text
+36.000 € Jahresgehalt
+```
+
+oder:
+
+```text
+17,50 € / Stunde
+```
+
+oder:
+
+```text
+ab 3.000 €
+```
+
+oder:
+
+```text
+Vergütung nach Tarif
+```
+
+oder gar nicht.
+
+Ihr braucht daher intern eine standardisierte Struktur:
+
+```text
+salary_min_monthly
+salary_max_monthly
+salary_period
+salary_currency
+salary_source
+salary_confidence
+```
+
+Beispielsweise:
+
+```text
+36.000 €/year
+        ↓
+3.000 €/month
+```
+
+und:
+
+```text
+17,50 €/hour
+        ↓
+ca. 3.033 €/month
+```
+
+nur wenn eine definierte Wochenarbeitszeit zugrunde gelegt werden kann.
+
+Wichtig: Eine geschätzte Gehaltszahl muss intern von einem tatsächlich angegebenen Gehalt unterschieden werden. Adzuna bietet beispielsweise auch eine eigene Salary-Predictor-Funktion an; das ist aber eine Schätzung und sollte nicht als vom Arbeitgeber angegebenes Gehalt behandelt werden. ([Adzuna Developer][4])
+
+---
+
+# 8. Adzuna müssen wir nicht nur „mehr abfragen“, sondern intelligenter abfragen
+
+Aktuell:
+
+```text
+where=Berlin
+results_per_page=50
+```
+
+Das ist zu grob.
+
+Für:
+
+```text
+Logistik
+Berlin
+Vollzeit
+2500–3500
+```
+
+sollte die Anfrage bereits möglichst viel Arbeit der Quelle überlassen.
+
+Zum Beispiel konzeptionell:
+
+```text
+what = Lager Logistik
+where = Berlin
+full_time = 1
+salary_min = ...
+```
+
+Dann mehrere Seiten.
+
+Adzuna dokumentiert sowohl die Suchparameter als auch Kategorien und regionale Daten; das kann genutzt werden, um die Collector-Schicht wesentlich gezielter aufzubauen. ([Adzuna Developer][1])
+
+---
+
+# 9. Jooble hat ebenfalls Pagination und Salary-Filter
+
+Eure Jooble-Integration scheint momentan nur einen kleinen Ausschnitt zu verwenden.
+
+Die aktuelle Jooble-API unterstützt unter anderem:
+
+```text
+keywords
+location
+radius
+salary
+page
+ResultOnPage
+SearchMode
+companysearch
+```
+
+und liefert zusätzlich `totalCount`. ([Jooble Help Center][5])
+
+Das bedeutet, wir sollten nicht einfach:
+
+```text
+page=1
+30 jobs
+```
+
+holen und danach alles lokal wegwerfen.
+
+Wir können beispielsweise:
+
+```text
+page 1
+page 2
+page 3
+...
+```
+
+abrufen, solange es relevante Kandidaten gibt oder bis ein definiertes Collector-Limit erreicht wird.
+
+---
+
+# 10. Arbeitsagentur ist ebenfalls nicht „kaputt“, sondern eure Integration ist veraltet/falsch
+
+Der aktuelle Log:
+
+```text
+ArbeitsagenturCollector
+Status: 403
+```
+
+ist relevant.
+
+Ein öffentlich verfügbares Beispiel für die Bundesagentur-Jobsuche verwendet beispielsweise:
+
+```text
+X-API-Key: jobboerse-jobsuche
+```
+
+und den Endpoint:
+
+```text
+/rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/app/jobs
+```
+
+mit Parametern wie:
+
+```text
+angebotsart
+page
+size
+umkreis
+was
+wo
+```
+
+([GitHub][6])
+
+Euer aktueller Endpoint im Log ist:
+
+```text
+.../pc/v4/jobs
+```
+
+und liefert:
+
+```text
+403
+```
+
+Das sollten wir separat korrigieren.
+
+---
+
+# 11. StepStone ist ebenfalls eindeutig veraltet
+
+Ihr bekommt:
+
+```text
+410 Gone
+```
+
+bei:
+
+```text
+https://www.stepstone.de/jobs/logistik/in-berlin.html
+```
+
+`410 Gone` bedeutet nicht „keine Jobs“.
+
+Es bedeutet, dass die angeforderte Ressource/Route nicht mehr verfügbar ist.
+
+Der Collector muss deshalb nicht weiter versuchen, diese alte URL als funktionierende Suchschnittstelle zu behandeln.
+
+---
+
+# 12. Kleinanzeigen ist aktuell sogar ein wichtiger Test für eure Architektur
+
+Wenn Kleinanzeigen aktuell beispielsweise über 38.000 Berliner Jobs ausweist und ihr Collector:
+
+```text
+Returned 0 jobs
+```
+
+meldet, dann ist das ein klarer Integrationsfehler.
+
+Das ist genau die Art von Quelle, bei der wir den Collector nicht einfach mit:
+
+```python
+fallback_jobs(...)
+```
+
+„grün“ aussehen lassen sollten.
+
+Das ist gefährlich:
+
+```python
+if not jobs:
+    jobs = fallback_jobs(...)
+```
+
+Denn dadurch kann ein kaputter Collector so aussehen, als hätte er erfolgreich gearbeitet.
+
+Für Produktionsbetrieb sollte es stattdessen geben:
+
+```text
+SUCCESS
+EMPTY
+BLOCKED
+HTTP_ERROR
+PARSER_ERROR
+RATE_LIMITED
+DISABLED
+```
+
+Beispielsweise:
+
+```text
+Kleinanzeigen
+status = PARSER_ERROR
+jobs = 0
+```
+
+statt:
+
+```text
+Kleinanzeigen
+status = SUCCESS
+jobs = 0
+```
+
+---
+
+# 13. Dasselbe Problem sehe ich in deinem AMS-Code
+
+Hier ist ein konkreter Fehler:
+
+```python
+return jobs,
+```
+
+Das Komma macht daraus ein Tuple:
+
+```python
+([job1, job2, ...],)
+```
+
+und nicht:
+
+```python
+[job1, job2, ...]
+```
+
+Das ist falsch für:
+
+```python
+-> List[Dict[str, Any]]
+```
+
+Es muss sein:
+
+```python
+return jobs
+```
+
+Außerdem würde ich den Fallback komplett entfernen.
+
+Dieser Teil:
+
+```python
+if not jobs:
+    print(...)
+    jobs = self._get_fallback_jobs(...)
+```
+
+ist für einen echten Jobaggregator falsch.
+
+Wenn AMS keine Jobs liefert, darf eure Datenbank keine künstlichen:
+
+```text
+AMS Fallback 1
+AMS Fallback 2
+...
+```
+
+Jobs bekommen.
+
+Das sind keine realen Stellenanzeigen.
+
+---
+
+# 14. Dein Indeed-Belgium-Collector hat dasselbe strukturelle Problem
+
+Der Collector ist zwar für Belgien, aber auch dort:
+
+```python
+max_pages = 3
+```
+
+und:
+
+```python
+limit = 50
+```
+
+Das bedeutet maximal ein kleiner Ausschnitt.
+
+Zusätzlich:
+
+```python
+if not jobs:
+    jobs = self._get_fallback_jobs(...)
+```
+
+wieder künstliche Jobs.
+
+Und `_parse_date()` macht:
+
+```python
+return datetime.now().isoformat()
+```
+
+für praktisch alle unbekannten Datumsformate.
+
+Das ist für eure 24h-Notification-Logik besonders gefährlich.
+
+Denn dann kann ein alter Job plötzlich aussehen wie:
+
+```text
+veröffentlicht: jetzt
+```
+
+oder ein echter aktueller Job kann mit unzuverlässigem Datum behandelt werden.
+
+---
+
+# 15. Warum deine E-Mail momentan nicht kommt
+
+Hier ist die komplette Kette aus deinem Log:
+
+```text
+Scheduler startet
+        ↓
+250 Jobs gesammelt
+        ↓
+nur 4 haben gültiges Datum innerhalb 24h
+        ↓
+100 ohne gültiges Veröffentlichungsdatum
+        ↓
+User 1
+        ↓
+Kategorieprüfung
+        ↓
+0
+        ↓
+keine E-Mail
+
+User 2
+        ↓
+Kategorieprüfung
+        ↓
+0
+        ↓
+keine E-Mail
+```
+
+Das sieht man direkt:
+
+```text
+[Notifier] Recent-job window: 4 jobs within last 24h
+```
+
+Dann:
+
+```text
+[filter_jobs] kept=0 rejected_by_stage={'category': 4}
+```
+
+Dann:
+
+```text
+[Notifier] Matching recent jobs: 0
+```
+
+Dann:
+
+```text
+[Notifier] No matching jobs
+```
+
+Der Notifier macht also genau das, was ihm der aktuelle Code sagt.
+
+Das Problem ist nicht:
+
+```text
+Scheduler läuft nicht
+```
+
+sondern:
+
+```text
+Scheduler läuft
+→ Daten werden gesammelt
+→ Matching verwirft sie
+→ Notifier hat nichts zu senden
+```
+
+Das erklärt auch deinen Screenshot sehr gut: letzte E-Mail am 16.09., obwohl der Scheduler inzwischen läuft.
+
+---
+
+# 16. Die Architektur sollte auf „Source Coverage“ statt auf „Collector Count“ umgestellt werden
+
+Ich würde eure Job-Pipeline künftig so aufbauen:
+
+```text
+                    ┌── Bundesagentur
+                    ├── Adzuna
+                    ├── Jooble
+                    ├── Arbeitnow
+                    ├── Kleinanzeigen
+                    ├── StepStone
+                    ├── Stellenanzeigen
+                    ├── Indeed
+                    ├── weitere Quellen
+                    └── ...
+                            │
+                            ▼
+                    RAW JOB INGESTION
+                            │
+                            ▼
+                    NORMALIZATION
+             ┌──────────────┼──────────────┐
+             ▼              ▼              ▼
+          location       category        salary
+             │              │              │
+             └──────────────┼──────────────┘
+                            ▼
+                    employment type
+                            │
+                            ▼
+                     DEDUPLICATION
+                            │
+                            ▼
+                   DATABASE / JOB INDEX
+                            │
+                 ┌──────────┴──────────┐
+                 ▼                     ▼
+           Web search              Notifier
+                 │                     │
+                 ▼                     ▼
+          User filters           User filters
+```
+
+Das ist wesentlich stabiler.
+
+---
+
+# 17. Noch wichtiger: Quellen und Userfilter dürfen nicht miteinander vermischt werden
+
+Das ist momentan teilweise der Fall.
+
+Ein Collector sollte grundsätzlich sagen:
+
+```text
+„Hier sind die Jobs, die ich von meiner Quelle bekommen habe.“
+```
+
+Nicht:
+
+```text
+„Ich liefere nur Jobs, die ich anhand unserer internen Kategorie-Logik schon für passend halte.“
+```
+
+Dann kann dieselbe Jobdatenbank anschließend für beliebige Nutzer verwendet werden.
+
+Beispiel:
+
+```text
+Berlin
+```
+
+einmal sammeln.
+
+Danach:
+
+```text
+User A:
+Logistik
+Vollzeit
+2500–3500 €
+
+User B:
+Büro
+Teilzeit
+3000–4000 €
+
+User C:
+IT
+Vollzeit
+5000–7000 €
+```
+
+Alle drei verwenden dieselben normalisierten Rohdaten.
+
+---
+
+# 18. Das Ziel sollte nicht „100 Jobs pro Stadt“ sein
+
+Das wäre ebenfalls eine falsche Zielgröße.
+
+Wenn Kleinanzeigen allein aktuell zehntausende Treffer für Berlin anzeigt, ist eine harte Grenze von 50 oder 100 für einen Aggregator offensichtlich zu niedrig. ([Kleinanzeigen][2])
+
+Das eigentliche Ziel ist:
+
+```text
+Source Coverage
++
+Pagination
++
+Source-native filtering
++
+Normalization
++
+Deduplication
++
+correct user filtering
+```
+
+Dann kann beispielsweise aus:
+
+```text
+100.000 Rohanzeigen
+```
+
+werden:
+
+```text
+42.000 unique jobs
+```
+
+und daraus für einen Nutzer:
+
+```text
+312 passende Jobs
+```
+
+und davon:
+
+```text
+27 neue Jobs seit letzter Benachrichtigung
+```
+
+Das wäre die richtige Pipeline.
+
+---
+
+# 19. Die nächsten technischen Änderungen sind damit ziemlich klar
+
+Priorität 1:
+
+```text
+Kleinanzeigen Collector reparieren
+```
+
+weil aktuell:
+
+```text
+Returned 0 jobs
+```
+
+obwohl die Quelle massenhaft Jobs hat. ([Kleinanzeigen][2])
+
+Priorität 2:
+
+```text
+Arbeitsagentur Collector reparieren
+```
+
+wegen:
+
+```text
+403
+```
+
+und korrekter API-Authentifizierung/Route.
+
+Priorität 3:
+
+```text
+StepStone Collector aktualisieren/deaktivieren
+```
+
+weil:
+
+```text
+410
+```
+
+Priorität 4:
+
+```text
+category=None
+```
+
+darf nicht mehr automatisch zum Ausschluss führen.
+
+Priorität 5:
+
+```text
+Adzuna Pagination
+Jooble Pagination
+Arbeitnow Pagination
+```
+
+statt jeweils nur einen kleinen Ausschnitt zu verwenden.
+
+Priorität 6:
+
+```text
+salary normalization
+```
+
+für:
+
+```text
+monatlich
+jährlich
+Stundenlohn
+ab X
+X–Y
+Tarif
+```
+
+Priorität 7:
+
+```text
+employment_type normalization
+```
+
+für:
+
+```text
+Vollzeit
+full-time
+fulltime
+Ganztags
+40h
+Festanstellung
+```
+
+Priorität 8:
+
+```text
+location normalization + radius
+```
+
+damit beispielsweise:
+
+```text
+Berlin
+Berlin-Spandau
+Berlin-Marzahn
+Potsdam
+Hennigsdorf
+```
+
+je nach gewähltem Radius korrekt behandelt werden.
+
+Priorität 9:
+
+```text
+remove fake fallback jobs
+```
+
+aus AMS, Indeed und allen anderen Collectors.
+
+Priorität 10:
+
+```text
+collector health monitoring
+```
+
+damit das Dashboard irgendwann nicht nur sagt:
+
+```text
+Germany: 7 collectors
+```
+
+sondern:
+
+```text
+Germany
+
+Adzuna             OK        50
+Jooble             OK        30
+Arbeitnow          OK        24
+Arbeitsagentur     ERROR     403
+StepStone          ERROR     410
+Stellenanzeigen    EMPTY      0
+Kleinanzeigen      ERROR      0
+```
+
+Dann sieht man sofort, warum die App wenig Ergebnisse liefert.
+
+Ein zusätzlicher Punkt: In deinem geposteten Adzuna-Code/Log ist ein API-Schlüssel sichtbar. Den solltest du im Adzuna-Portal rotieren und anschließend nur noch über `.env`/Secret-Konfiguration laden; den Schlüssel nicht weiter in Quelltext oder Logs ausgeben.
+
+Die aktuelle Diagnose lautet daher präzise: **Eure App hat nicht primär zu wenige Jobquellen. Sie hat momentan zu wenig funktionierende Quellen, zu aggressive lokale Filter, zu wenig Pagination und eine fehlerhafte Normalisierung der Quelldaten. Die E-Mail-Automatisierung läuft; sie bekommt aufgrund dieser Pipeline aktuell fast keine qualifizierten Jobs.**
+
+[1]: https://developer.adzuna.com/docs/search?utm_source=chatgpt.com "Search ads"
+[2]: https://www.kleinanzeigen.de/s-jobs/berlin/c102l3331?utm_source=chatgpt.com "Jobs in Berlin | kleinanzeigen.de"
+[3]: https://www.kleinanzeigen.de/s-jobs/berlin/3-monaten/k0c102l3331?utm_source=chatgpt.com "3 Monaten, Jobs in Berlin | kleinanzeigen.de"
+[4]: https://developer.adzuna.com/docs/jobsworth?utm_source=chatgpt.com "Jobsworth"
+[5]: https://help.jooble.org/en/support/solutions/articles/60001448238?utm_source=chatgpt.com "REST API Documentation - Jooble : Jooble Help Center"
+[6]: https://github.com/bundesAPI/jobsuche-api/blob/main/api_example.py "https://github.com/bundesAPI/jobsuche-api/blob/main/api_example.py"
